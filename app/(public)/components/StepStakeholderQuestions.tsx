@@ -199,21 +199,21 @@ export default function StepStakeholderQuestions({
                       })}
                     </div>
 
-                    {/* Optional custom write-in text box */}
-                    <div className="pt-1">
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">
-                        Other / Additional Specific Suggestions <span className="font-normal text-slate-400">(Optional)</span>
+                    {/* Full multiline text area for written response */}
+                    <div className="pt-2">
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Specific Comments / Detailed Written Feedback <span className="font-normal text-slate-400">(Optional)</span>
                       </label>
-                      <input
-                        type="text"
-                        placeholder="Type any other specific area or custom suggestion here..."
+                      <textarea
+                        rows={4}
+                        placeholder="Type your detailed written response, comments, or additional areas to strengthen here..."
                         value={
                           typeof answers[`${q.id}_other`] === 'string'
                             ? answers[`${q.id}_other`]
                             : ''
                         }
                         onChange={(e) => handleAnswerChange(`${q.id}_other`, e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-sm focus:bg-white focus:outline-none focus:border-slate-500 transition-colors"
+                        className="w-full p-3.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-sm focus:bg-white focus:outline-none focus:border-slate-500 transition-colors"
                       />
                     </div>
                   </div>
