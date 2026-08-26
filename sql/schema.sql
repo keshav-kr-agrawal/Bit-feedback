@@ -168,11 +168,22 @@ drop policy if exists "admin delete responses" on responses;
 drop policy if exists "admin read admin_users" on admin_users;
 
 -- Public READ policies for active content tables
+drop policy if exists "public can read site settings" on site_settings;
 create policy "public can read site settings" on site_settings for select using (true);
+
+drop policy if exists "public can read active stakeholder categories" on stakeholder_categories;
 create policy "public can read active stakeholder categories" on stakeholder_categories for select using (is_active = true);
+
+drop policy if exists "public can read active priority items" on priority_items;
 create policy "public can read active priority items" on priority_items for select using (is_active = true);
+
+drop policy if exists "public can read active mission options" on mission_options;
 create policy "public can read active mission options" on mission_options for select using (is_active = true);
+
+drop policy if exists "public can read active stakeholder questions" on stakeholder_questions;
 create policy "public can read active stakeholder questions" on stakeholder_questions for select using (is_active = true);
+
+drop policy if exists "public can read active question options" on stakeholder_question_options;
 create policy "public can read active question options" on stakeholder_question_options for select using (is_active = true);
 
 -- Public INSERT policies for feedback response tables
