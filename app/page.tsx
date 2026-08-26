@@ -98,12 +98,21 @@ export default function PublicWizardPage() {
 
         if (questionsRes.data && questionsRes.data.length > 0) {
           const optionsList = optionsRes.data || [];
-          const sorted = questionsRes.data.map((q: any) => ({
-            ...q,
-            options: optionsList
-              .filter((o: any) => o.question_id === q.id)
-              .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0)),
-          }));
+          const sorted = questionsRes.data.map((q: any) => {
+            let opts = optionsList.filter((o: any) => o.question_id === q.id);
+            if (opts.length === 0 && q.question_type !== 'paragraph') {
+              const fallbackMatch = FALLBACK_QUESTIONS.find(
+                (fq) => fq.question_text.trim().toLowerCase() === q.question_text.trim().toLowerCase()
+              );
+              if (fallbackMatch && fallbackMatch.options) {
+                opts = fallbackMatch.options;
+              }
+            }
+            return {
+              ...q,
+              options: opts.sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0)),
+            };
+          });
           setAllQuestions(sorted);
         } else {
           setAllQuestions(FALLBACK_QUESTIONS);
