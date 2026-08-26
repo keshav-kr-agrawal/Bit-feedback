@@ -1,4 +1,17 @@
-import { StakeholderQuestion } from './types';
+import { StakeholderCategory, StakeholderQuestion } from './types';
+
+export const FALLBACK_CATEGORIES: StakeholderCategory[] = [
+  { id: '10000000-0000-0000-0000-000000000001', label: 'Management / Governing Body', slug: 'management', sort_order: 1, is_active: true },
+  { id: '10000000-0000-0000-0000-000000000002', label: 'Faculty', slug: 'faculty', sort_order: 2, is_active: true },
+  { id: '10000000-0000-0000-0000-000000000003', label: 'Employer / Industry', slug: 'employer', sort_order: 3, is_active: true },
+  { id: '10000000-0000-0000-0000-000000000004', label: 'Student', slug: 'student', sort_order: 4, is_active: true },
+  { id: '10000000-0000-0000-0000-000000000005', label: 'Alumni', slug: 'alumni', sort_order: 5, is_active: true },
+  { id: '10000000-0000-0000-0000-000000000006', label: 'Parent', slug: 'parent', sort_order: 6, is_active: true },
+  { id: '10000000-0000-0000-0000-000000000007', label: 'Society / Community', slug: 'society', sort_order: 7, is_active: true },
+  { id: '10000000-0000-0000-0000-000000000008', label: 'Staff', slug: 'staff', sort_order: 8, is_active: true },
+  { id: '10000000-0000-0000-0000-000000000009', label: 'Academic Expert', slug: 'academic_expert', sort_order: 9, is_active: true },
+  { id: '10000000-0000-0000-0000-000000000010', label: 'Other', slug: 'other', sort_order: 10, is_active: true },
+];
 
 export const FALLBACK_QUESTIONS: StakeholderQuestion[] = [
   // STUDENT

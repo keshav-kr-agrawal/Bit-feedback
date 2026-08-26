@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { StakeholderQuestion, StakeholderQuestionOption } from '@/lib/types';
-import { ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface StepStakeholderQuestionsProps {
   categoryLabel: string;
@@ -86,6 +86,45 @@ export default function StepStakeholderQuestions({
 
     onNext(answers);
   };
+
+  if (!questions || questions.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-3xl mx-auto space-y-6 text-center">
+        <div>
+          <div className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+            <span>Part D</span>
+            <span>•</span>
+            <span>{categoryLabel} Questionnaire</span>
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">Role-Specific Stakeholder Feedback</h2>
+          <p className="text-sm text-slate-600 mt-2">
+            No additional category-specific questions are configured for <strong>{categoryLabel}</strong>.
+          </p>
+        </div>
+
+        <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={onBack}
+            className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNext({})}
+            className="px-6 py-2.5 rounded-xl text-white font-semibold text-sm flex items-center gap-2 shadow-sm transition-all hover:opacity-95"
+            style={{ backgroundColor: primaryColor }}
+          >
+            <span>Continue to Final Suggestion</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form

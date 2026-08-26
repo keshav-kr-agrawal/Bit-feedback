@@ -10,7 +10,7 @@ import {
   StakeholderQuestion,
   MissionSelectionInput,
 } from '@/lib/types';
-import { FALLBACK_QUESTIONS } from '@/lib/sampleData';
+import { FALLBACK_CATEGORIES, FALLBACK_QUESTIONS } from '@/lib/sampleData';
 import Header from './(public)/components/Header';
 import Footer from './(public)/components/Footer';
 import StepLanding from './(public)/components/StepLanding';
@@ -26,7 +26,7 @@ export default function PublicWizardPage() {
 
   // Database loaded config state
   const [settings, setSettings] = useState<SiteSettings | null>(null);
-  const [categories, setCategories] = useState<StakeholderCategory[]>([]);
+  const [categories, setCategories] = useState<StakeholderCategory[]>(FALLBACK_CATEGORIES);
   const [priorityItems, setPriorityItems] = useState<PriorityItem[]>([]);
   const [missionOptions, setMissionOptions] = useState<MissionOption[]>([]);
   const [allQuestions, setAllQuestions] = useState<StakeholderQuestion[]>(FALLBACK_QUESTIONS);
@@ -112,16 +112,17 @@ export default function PublicWizardPage() {
     loadConfig();
   }, []);
 
-  // Selected category details & matching active questions
+  // Selected category details
   const selectedCategory = categories.find(
     (c) => c.id === formData.stakeholder_category_id
   );
 
-  const getMatchingQuestionsForCategory = (catId: string) => {
-    if (!catId) return [];
+  // Get matching questions for category
+  const getQuestionsForCategory = (catId: string) => {
+    if (!catId) return FALLBACK_QUESTIONS.filter((q) => q.category_id.endsWith('4')); // default Student
     const catObj = categories.find((c) => c.id === catId);
 
-    return allQuestions.filter((q: any) => {
+    const matched = allQuestions.filter((q: any) => {
       if (q.is_active === false) return false;
       if (q.category_id === catId) return true;
       if (
@@ -131,7 +132,6 @@ export default function PublicWizardPage() {
       ) {
         return true;
       }
-      // Fallback matching by slug/UUID suffix
       if (catObj) {
         const slug = catObj.slug ? catObj.slug.toLowerCase() : '';
         if (slug.includes('student') && (q.id.includes('student') || q.category_id.endsWith('4'))) return true;
@@ -144,22 +144,31 @@ export default function PublicWizardPage() {
       }
       return false;
     });
+
+    if (matched.length > 0) return matched;
+
+    // Fallback search from FALLBACK_QUESTIONS
+    if (catObj) {
+      const slug = catObj.slug ? catObj.slug.toLowerCase() : '';
+      return FALLBACK_QUESTIONS.filter((q) => {
+        if (slug.includes('student') && q.id.includes('student')) return true;
+        if (slug.includes('faculty') && q.id.includes('faculty')) return true;
+        if (slug.includes('alumni') && q.id.includes('alumni')) return true;
+        if (slug.includes('employer') && q.id.includes('employer')) return true;
+        if (slug.includes('parent') && q.id.includes('parent')) return true;
+        if (slug.includes('management') && q.id.includes('mgmt')) return true;
+        if (slug.includes('society') && q.id.includes('soc')) return true;
+        return false;
+      });
+    }
+
+    return [];
   };
 
-  const activeCategoryQuestions = getMatchingQuestionsForCategory(formData.stakeholder_category_id);
-  const isPartDActive = activeCategoryQuestions.length > 0;
-  const totalWizardSteps = isPartDActive ? 4 : 3;
+  const activeCategoryQuestions = getQuestionsForCategory(formData.stakeholder_category_id);
 
-  // Calculate current step number for UI progress indicator
-  const getCurrentStepDisplayNumber = () => {
-    if (step === 1) return 1;
-    if (step === 2) return 2;
-    if (step === 3) return 3;
-    if (step === 4) return isPartDActive ? 4 : 3;
-    return 1;
-  };
-
-  const currentStepNumber = getCurrentStepDisplayNumber();
+  // Deterministic 4 wizard steps (Step 1 to 4)
+  const totalWizardSteps = 4;
 
   // Wizard Navigation handlers
   const handlePartABSubmit = (data: {
@@ -181,16 +190,8 @@ export default function PublicWizardPage() {
       ...prev,
       mission_commitments: commitments,
     }));
-
-    // Find questions matching selected category
-    const questionsForCat = getMatchingQuestionsForCategory(formData.stakeholder_category_id);
-
-    // If active category has questions, go to step 3 (Part D), else skip to step 4 (Part E)
-    if (questionsForCat.length > 0) {
-      setStep(3);
-    } else {
-      setStep(4);
-    }
+    // ALWAYS move to Step 3 (Part D: Role-Specific Questions)
+    setStep(3);
   };
 
   const handleQuestionsSubmit = (answers: Record<string, any>) => {
@@ -198,6 +199,7 @@ export default function PublicWizardPage() {
       ...prev,
       stakeholder_answers: answers,
     }));
+    // Move to Step 4 (Part E: Additional Suggestions)
     setStep(4);
   };
 
@@ -265,7 +267,7 @@ export default function PublicWizardPage() {
             {step > 0 && step < 5 && (
               <div className="max-w-2xl mx-auto mb-8 px-2">
                 <div className="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
-                  <span>Step {currentStepNumber} of {totalWizardSteps}</span>
+                  <span>Step {step} of {totalWizardSteps}</span>
                   <span>
                     {step === 1 && 'Part A & B: Details & Priorities'}
                     {step === 2 && 'Part C: Mission Commitments'}
@@ -277,7 +279,7 @@ export default function PublicWizardPage() {
                   <div
                     className="h-full transition-all duration-300 rounded-full"
                     style={{
-                      width: `${(currentStepNumber / totalWizardSteps) * 100}%`,
+                      width: `${(step / totalWizardSteps) * 100}%`,
                       backgroundColor: primaryColor,
                     }}
                   />
@@ -334,9 +336,7 @@ export default function PublicWizardPage() {
               <StepSuggestion
                 initialSuggestion={formData.suggestion}
                 onSubmit={handleFinalSubmit}
-                onBack={() =>
-                  setStep(isPartDActive ? 3 : 2)
-                }
+                onBack={() => setStep(3)}
                 isSubmitting={isSubmitting}
                 submitError={submitError}
                 primaryColor={primaryColor}
