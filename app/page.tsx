@@ -79,7 +79,7 @@ export default function PublicWizardPage() {
             .order('sort_order', { ascending: true }),
           supabase
             .from('stakeholder_questions')
-            .select('*, options:stakeholder_question_options(*)')
+            .select('*, category:stakeholder_categories(id, slug, label), options:stakeholder_question_options(*)')
             .eq('is_active', true)
             .order('sort_order', { ascending: true }),
         ]);
@@ -107,14 +107,24 @@ export default function PublicWizardPage() {
     loadConfig();
   }, []);
 
-  // Selected category details & questions
+  // Selected category details & matching active questions
   const selectedCategory = categories.find(
     (c) => c.id === formData.stakeholder_category_id
   );
 
-  const activeCategoryQuestions = allQuestions.filter(
-    (q) => q.category_id === formData.stakeholder_category_id && q.is_active
-  );
+  const activeCategoryQuestions = allQuestions.filter((q: any) => {
+    if (!formData.stakeholder_category_id) return false;
+    if (q.is_active === false) return false;
+    if (q.category_id === formData.stakeholder_category_id) return true;
+    if (
+      selectedCategory &&
+      q.category &&
+      (q.category.id === selectedCategory.id || q.category.slug === selectedCategory.slug)
+    ) {
+      return true;
+    }
+    return false;
+  });
 
   const isPartDActive = activeCategoryQuestions.length > 0;
   const totalWizardSteps = isPartDActive ? 4 : 3;
@@ -151,8 +161,27 @@ export default function PublicWizardPage() {
       mission_commitments: commitments,
     }));
 
+    // Find questions matching selected category
+    const matchingCategory = categories.find(
+      (c) => c.id === formData.stakeholder_category_id
+    );
+
+    const questionsForCat = allQuestions.filter((q: any) => {
+      if (!formData.stakeholder_category_id) return false;
+      if (q.is_active === false) return false;
+      if (q.category_id === formData.stakeholder_category_id) return true;
+      if (
+        matchingCategory &&
+        q.category &&
+        (q.category.id === matchingCategory.id || q.category.slug === matchingCategory.slug)
+      ) {
+        return true;
+      }
+      return false;
+    });
+
     // If active category has questions, go to step 3 (Part D), else skip to step 4 (Part E)
-    if (activeCategoryQuestions.length > 0) {
+    if (questionsForCat.length > 0) {
       setStep(3);
     } else {
       setStep(4);
