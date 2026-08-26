@@ -117,49 +117,38 @@ export default function PublicWizardPage() {
     (c) => c.id === formData.stakeholder_category_id
   );
 
-  // Get matching questions for category
+  // Robust questions retriever for selected category
   const getQuestionsForCategory = (catId: string) => {
-    if (!catId) return FALLBACK_QUESTIONS.filter((q) => q.category_id.endsWith('4')); // default Student
+    if (!catId) return FALLBACK_QUESTIONS.filter((q) => q.id.includes('student'));
     const catObj = categories.find((c) => c.id === catId);
+    const catLabel = catObj ? catObj.label.toLowerCase() : '';
+    const catSlug = catObj ? catObj.slug.toLowerCase() : '';
 
-    const matched = allQuestions.filter((q: any) => {
-      if (q.is_active === false) return false;
-      if (q.category_id === catId) return true;
-      if (
-        catObj &&
-        q.category &&
-        (q.category.id === catObj.id || q.category.slug === catObj.slug)
-      ) {
-        return true;
-      }
-      if (catObj) {
-        const slug = catObj.slug ? catObj.slug.toLowerCase() : '';
-        if (slug.includes('student') && (q.id.includes('student') || q.category_id.endsWith('4'))) return true;
-        if (slug.includes('faculty') && (q.id.includes('faculty') || q.category_id.endsWith('2'))) return true;
-        if (slug.includes('alumni') && (q.id.includes('alumni') || q.category_id.endsWith('5'))) return true;
-        if (slug.includes('employer') && (q.id.includes('employer') || q.category_id.endsWith('3'))) return true;
-        if (slug.includes('parent') && (q.id.includes('parent') || q.category_id.endsWith('6'))) return true;
-        if (slug.includes('management') && (q.id.includes('mgmt') || q.category_id.endsWith('1'))) return true;
-        if (slug.includes('society') && (q.id.includes('soc') || q.category_id.endsWith('7'))) return true;
-      }
-      return false;
-    });
-
+    // 1. Direct category_id match
+    let matched = allQuestions.filter((q: any) => q.is_active !== false && q.category_id === catId);
     if (matched.length > 0) return matched;
 
-    // Fallback search from FALLBACK_QUESTIONS
-    if (catObj) {
-      const slug = catObj.slug ? catObj.slug.toLowerCase() : '';
-      return FALLBACK_QUESTIONS.filter((q) => {
-        if (slug.includes('student') && q.id.includes('student')) return true;
-        if (slug.includes('faculty') && q.id.includes('faculty')) return true;
-        if (slug.includes('alumni') && q.id.includes('alumni')) return true;
-        if (slug.includes('employer') && q.id.includes('employer')) return true;
-        if (slug.includes('parent') && q.id.includes('parent')) return true;
-        if (slug.includes('management') && q.id.includes('mgmt')) return true;
-        if (slug.includes('society') && q.id.includes('soc')) return true;
-        return false;
-      });
+    // 2. Joined category id/slug match
+    matched = allQuestions.filter((q: any) => {
+      if (q.is_active === false) return false;
+      if (q.category && (q.category.id === catId || q.category.slug === catSlug)) return true;
+      return false;
+    });
+    if (matched.length > 0) return matched;
+
+    // 3. Keyword matching against FALLBACK_QUESTIONS
+    const roleKeyword = 
+      catLabel.includes('student') || catSlug.includes('student') ? 'student' :
+      catLabel.includes('faculty') || catSlug.includes('faculty') ? 'faculty' :
+      catLabel.includes('alumni') || catSlug.includes('alumni') ? 'alumni' :
+      catLabel.includes('employer') || catLabel.includes('industry') || catSlug.includes('employer') ? 'employer' :
+      catLabel.includes('parent') || catSlug.includes('parent') ? 'parent' :
+      catLabel.includes('management') || catLabel.includes('governing') || catSlug.includes('management') ? 'mgmt' :
+      catLabel.includes('society') || catLabel.includes('community') || catSlug.includes('society') ? 'soc' :
+      '';
+
+    if (roleKeyword) {
+      return FALLBACK_QUESTIONS.filter((q) => q.id.toLowerCase().includes(roleKeyword));
     }
 
     return [];
@@ -167,7 +156,7 @@ export default function PublicWizardPage() {
 
   const activeCategoryQuestions = getQuestionsForCategory(formData.stakeholder_category_id);
 
-  // Deterministic 4 wizard steps (Step 1 to 4)
+  // Deterministic 4-step wizard structure
   const totalWizardSteps = 4;
 
   // Wizard Navigation handlers
@@ -199,7 +188,7 @@ export default function PublicWizardPage() {
       ...prev,
       stakeholder_answers: answers,
     }));
-    // Move to Step 4 (Part E: Additional Suggestions)
+    // Move to Step 4 (Part E: Additional Recommendations)
     setStep(4);
   };
 
