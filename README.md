@@ -1,22 +1,10 @@
 # Bangalore Institute of Technology — NBA/NAAC Stakeholder Feedback System
 
-> **Status**: Connected to Supabase Project `hqokhdldpawteapuxwto` • Relational Schema & Seed Data Initialized • RLS Active • Atomic RPC & Fallback Engine Online
-
 A production-ready, fully admin-controlled **Institute Stakeholder Feedback website** built for Bangalore Institute of Technology's NBA and NAAC Accreditation Vision-Mission stakeholder feedback exercises.
 
 The system features two primary surfaces:
 1. **Public Feedback Form**: A responsive, multi-step wizard filled out by college stakeholders (Students, Faculty, Alumni, Parents, Employers, Management, Society/Community, Staff, Academic Experts).
 2. **Admin Panel & CMS**: A password-protected dashboard where the IQAC administrator can control every single piece of content (dropdown options, questions, checkbox lists, wording, institute branding, color themes, form open/closed state) and view responses as interactive charts, filterable tables, and downloadable **CSV** and **PDF** reports.
-
----
-
-## 🔑 Access Credentials & Live URLs
-
-- **Public Form URL**: [http://localhost:3001](http://localhost:3001)
-- **Admin Portal Login**: [http://localhost:3001/admin/login](http://localhost:3001/admin/login)
-  - **Admin ID**: `adbc`
-  - **Password**: `1234`
-  - *(No email verification required for demo login)*
 
 ---
 
@@ -34,7 +22,6 @@ The system features two primary surfaces:
 - **Step 5 — Thank You Page**: Completion screen displaying custom thank-you messaging.
 
 ### Admin Dashboard & CMS
-- **Instant Admin Sign-In**: Login with Admin ID `adbc` and Password `1234`.
 - **Analytics Overview (`/admin`)**: Summary metric cards and Recharts visualizations:
   - Bar chart: Submissions per stakeholder category.
   - Pie/Donut chart: Pick counts for mission commitments.
@@ -58,7 +45,7 @@ The system features two primary surfaces:
 
 - **Framework**: Next.js 14+ (App Router) with TypeScript
 - **Styling**: Tailwind CSS (Institutional Light Theme `#F8F9FB` / `#FFFFFF` with muted navy `#1F4E79`)
-- **Backend & Database**: Supabase (`https://hqokhdldpawteapuxwto.supabase.co`)
+- **Backend & Database**: Supabase (Postgres Database + RLS)
 - **Security**: Postgres Row Level Security (RLS) & `is_admin()` helper function
 - **SDKs**: `@supabase/supabase-js`, `@supabase/ssr`
 - **Analytics & Graphs**: Recharts
@@ -71,7 +58,7 @@ The system features two primary surfaces:
 ## 📁 File Structure
 
 ```
-/Users/keshav/Bit-feedback
+.
 ├── app/
 │   ├── (public)/
 │   │   └── components/
@@ -85,7 +72,7 @@ The system features two primary surfaces:
 │   │       └── StepThankYou.tsx           # Step 5 completion screen
 │   ├── admin/
 │   │   ├── login/
-│   │   │   └── page.tsx                   # Admin login screen (ID: adbc, Pass: 1234)
+│   │   │   └── page.tsx                   # Admin login screen
 │   │   ├── page.tsx                       # Overview analytics with Recharts
 │   │   ├── responses/
 │   │   │   └── page.tsx                   # Data table, filters, CSV & PDF export engine
@@ -122,11 +109,16 @@ The system features two primary surfaces:
 
 ---
 
-## 🚀 Deployment to Vercel
+## 🚀 Environment Variables & Vercel Deployment
+
+Create a `.env.local` file locally, or set the environment variables in your Vercel Project Settings:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_SUPABASE_PROJECT_URL.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+```
 
 1. Push your repository to GitHub.
 2. Import the project into [Vercel](https://vercel.com).
-3. Set Environment Variables under **Project Settings -> Environment Variables**:
-   - `NEXT_PUBLIC_SUPABASE_URL` = `https://hqokhdldpawteapuxwto.supabase.co`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = `eyJhbGciOiJIUzI1...`
+3. Set the Environment Variables above under **Project Settings -> Environment Variables**.
 4. Click **Deploy**.
