@@ -30,6 +30,7 @@ export async function POST(request: Request) {
             payload.stakeholder_category_id && payload.stakeholder_category_id.length === 36
               ? payload.stakeholder_category_id
               : null,
+          priority_ratings: payload.priority_ratings || null,
         },
       ])
       .select()
