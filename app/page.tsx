@@ -61,6 +61,7 @@ export default function PublicWizardPage() {
           prioritiesRes,
           missionRes,
           questionsRes,
+          optionsRes,
         ] = await Promise.all([
           supabase.from('site_settings').select('*').eq('id', 1).single(),
           supabase
@@ -80,7 +81,12 @@ export default function PublicWizardPage() {
             .order('sort_order', { ascending: true }),
           supabase
             .from('stakeholder_questions')
-            .select('*, options:stakeholder_question_options(*)')
+            .select('*')
+            .eq('is_active', true)
+            .order('sort_order', { ascending: true }),
+          supabase
+            .from('stakeholder_question_options')
+            .select('*')
             .eq('is_active', true)
             .order('sort_order', { ascending: true }),
         ]);
@@ -91,11 +97,12 @@ export default function PublicWizardPage() {
         if (missionRes.data && missionRes.data.length > 0) setMissionOptions(missionRes.data);
 
         if (questionsRes.data && questionsRes.data.length > 0) {
+          const optionsList = optionsRes.data || [];
           const sorted = questionsRes.data.map((q: any) => ({
             ...q,
-            options: Array.isArray(q.options)
-              ? [...q.options].sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0))
-              : [],
+            options: optionsList
+              .filter((o: any) => o.question_id === q.id)
+              .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0)),
           }));
           setAllQuestions(sorted);
         } else {

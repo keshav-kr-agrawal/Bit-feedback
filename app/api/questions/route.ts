@@ -7,9 +7,10 @@ export async function GET(request: Request) {
     const categoryId = searchParams.get('category_id');
 
     const supabase = createClient();
+
     let query = supabase
       .from('stakeholder_questions')
-      .select('*, options:stakeholder_question_options(*)')
+      .select('*')
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 
@@ -17,13 +18,30 @@ export async function GET(request: Request) {
       query = query.eq('category_id', categoryId);
     }
 
-    const { data, error } = await query;
+    const [questionsRes, optionsRes] = await Promise.all([
+      query,
+      supabase
+        .from('stakeholder_question_options')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true }),
+    ]);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (questionsRes.error) {
+      return NextResponse.json({ error: questionsRes.error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ questions: data || [] });
+    const questionsList = questionsRes.data || [];
+    const optionsList = optionsRes.data || [];
+
+    const merged = questionsList.map((q: any) => ({
+      ...q,
+      options: optionsList
+        .filter((o: any) => o.question_id === q.id)
+        .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0)),
+    }));
+
+    return NextResponse.json({ questions: merged });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
   }
