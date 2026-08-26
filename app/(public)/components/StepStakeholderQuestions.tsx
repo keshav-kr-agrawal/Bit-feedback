@@ -172,30 +172,50 @@ export default function StepStakeholderQuestions({
               <div className="pl-6">
                 {/* 1. Checkboxes */}
                 {q.question_type === 'checkboxes' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {rawOptions.map((opt) => {
-                      const isChecked =
-                        Array.isArray(answers[q.id]) &&
-                        answers[q.id].includes(opt.option_label);
-                      return (
-                        <label
-                          key={opt.id}
-                          className={`flex items-start gap-3 p-3 rounded-xl border text-sm font-medium transition-colors cursor-pointer select-none ${
-                            isChecked
-                              ? 'bg-blue-50/50 border-blue-300 text-slate-900'
-                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => handleCheckboxToggle(q.id, opt.option_label)}
-                            className="mt-0.5 rounded border-slate-300 text-slate-800 focus:ring-slate-500 h-4 w-4"
-                          />
-                          <span>{opt.option_label}</span>
-                        </label>
-                      );
-                    })}
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {rawOptions.map((opt) => {
+                        const isChecked =
+                          Array.isArray(answers[q.id]) &&
+                          answers[q.id].includes(opt.option_label);
+                        return (
+                          <label
+                            key={opt.id}
+                            className={`flex items-start gap-3 p-3 rounded-xl border text-sm font-medium transition-colors cursor-pointer select-none ${
+                              isChecked
+                                ? 'bg-blue-50/50 border-blue-300 text-slate-900'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleCheckboxToggle(q.id, opt.option_label)}
+                              className="mt-0.5 rounded border-slate-300 text-slate-800 focus:ring-slate-500 h-4 w-4"
+                            />
+                            <span>{opt.option_label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    {/* Optional custom write-in text box */}
+                    <div className="pt-1">
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">
+                        Other / Additional Specific Suggestions <span className="font-normal text-slate-400">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Type any other specific area or custom suggestion here..."
+                        value={
+                          typeof answers[`${q.id}_other`] === 'string'
+                            ? answers[`${q.id}_other`]
+                            : ''
+                        }
+                        onChange={(e) => handleAnswerChange(`${q.id}_other`, e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-sm focus:bg-white focus:outline-none focus:border-slate-500 transition-colors"
+                      />
+                    </div>
                   </div>
                 )}
 
