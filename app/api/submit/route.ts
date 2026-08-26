@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
-    const supabase = createClient();
+    const supabase = createAdminClient();
 
     // 1. Try atomic RPC function submission first
     const { data: rpcData, error: rpcError } = await supabase.rpc(
@@ -16,9 +16,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, data: rpcData });
     }
 
-    console.warn('RPC submission failed, attempting direct table insert fallback:', rpcError.message);
+    console.warn('RPC submission failed, executing direct admin table insert fallback:', rpcError.message);
 
-    // 2. Direct table insertion fallback
+    // 2. Direct table insertion fallback with admin privileges
     const { data: resp, error: parentErr } = await supabase
       .from('responses')
       .insert([
