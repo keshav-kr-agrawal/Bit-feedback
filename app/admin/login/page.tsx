@@ -3,15 +3,15 @@
 import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { ShieldCheck, Lock, User, Loader2, AlertCircle, Sparkles, Building2 } from 'lucide-react';
+import { ShieldCheck, Lock, User, Loader2, AlertCircle, Building2 } from 'lucide-react';
 
 function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
 
-  const [adminId, setAdminId] = useState('HKS1321');
-  const [password, setPassword] = useState('SavithaBit@1979');
+  const [adminId, setAdminId] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(
     searchParams.get('error') === 'not_authorized'
@@ -28,7 +28,7 @@ function AdminLoginForm() {
       const cleanId = adminId.trim();
       const cleanPass = password.trim();
 
-      // Check admin credentials (HKS1321 / SavithaBit@1979 or any ID/pass fallback)
+      // Check admin credentials
       if (cleanId === 'HKS1321' && cleanPass === 'SavithaBit@1979') {
         document.cookie = 'admin_demo_session=true; path=/; max-age=86400; SameSite=Lax';
         router.push('/admin');
@@ -51,10 +51,8 @@ function AdminLoginForm() {
         }
       }
 
-      // Seamless login fallback for any admin ID and password entered
-      document.cookie = 'admin_demo_session=true; path=/; max-age=86400; SameSite=Lax';
-      router.push('/admin');
-      router.refresh();
+      // Admin verification check
+      setError('Invalid Admin ID or Password. Please try again.');
     } catch (err: any) {
       setError(err.message || 'Failed to sign in.');
     } finally {
@@ -78,20 +76,6 @@ function AdminLoginForm() {
         </div>
       </div>
 
-      {/* Admin Credentials Badge */}
-      <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-4 text-xs text-blue-950 space-y-1">
-        <div className="flex items-center gap-1.5 font-bold text-blue-900">
-          <Sparkles className="w-4 h-4 text-blue-700" />
-          <span>Admin Access Credentials</span>
-        </div>
-        <p className="text-blue-900 font-mono text-sm">
-          Admin ID: <strong className="text-blue-950 font-bold">HKS1321</strong> &nbsp;|&nbsp; Password: <strong className="text-blue-950 font-bold">SavithaBit@1979</strong>
-        </p>
-        <p className="text-[11px] text-blue-700 mt-0.5">
-          (Pre-filled. Click Sign In below to access the full admin dashboard.)
-        </p>
-      </div>
-
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-800 text-sm flex items-start gap-2.5">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -111,7 +95,7 @@ function AdminLoginForm() {
               required
               value={adminId}
               onChange={(e) => setAdminId(e.target.value)}
-              placeholder="HKS1321"
+              placeholder="Enter Admin ID"
               className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-sm focus:bg-white focus:outline-none focus:border-slate-500 transition-colors"
             />
           </div>
@@ -128,7 +112,7 @@ function AdminLoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="SavithaBit@1979"
+              placeholder="Enter Password"
               className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-sm focus:bg-white focus:outline-none focus:border-slate-500 transition-colors"
             />
           </div>
