@@ -10,6 +10,7 @@ import {
   StakeholderQuestion,
   MissionSelectionInput,
 } from '@/lib/types';
+import { FALLBACK_QUESTIONS } from '@/lib/sampleData';
 import Header from './(public)/components/Header';
 import Footer from './(public)/components/Footer';
 import StepLanding from './(public)/components/StepLanding';
@@ -28,7 +29,7 @@ export default function PublicWizardPage() {
   const [categories, setCategories] = useState<StakeholderCategory[]>([]);
   const [priorityItems, setPriorityItems] = useState<PriorityItem[]>([]);
   const [missionOptions, setMissionOptions] = useState<MissionOption[]>([]);
-  const [allQuestions, setAllQuestions] = useState<StakeholderQuestion[]>([]);
+  const [allQuestions, setAllQuestions] = useState<StakeholderQuestion[]>(FALLBACK_QUESTIONS);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
 
   // Wizard state
@@ -85,10 +86,11 @@ export default function PublicWizardPage() {
         ]);
 
         if (settingsRes.data) setSettings(settingsRes.data);
-        if (categoriesRes.data) setCategories(categoriesRes.data);
-        if (prioritiesRes.data) setPriorityItems(prioritiesRes.data);
-        if (missionRes.data) setMissionOptions(missionRes.data);
-        if (questionsRes.data) {
+        if (categoriesRes.data && categoriesRes.data.length > 0) setCategories(categoriesRes.data);
+        if (prioritiesRes.data && prioritiesRes.data.length > 0) setPriorityItems(prioritiesRes.data);
+        if (missionRes.data && missionRes.data.length > 0) setMissionOptions(missionRes.data);
+
+        if (questionsRes.data && questionsRes.data.length > 0) {
           const sorted = questionsRes.data.map((q: any) => ({
             ...q,
             options: Array.isArray(q.options)
@@ -96,9 +98,12 @@ export default function PublicWizardPage() {
               : [],
           }));
           setAllQuestions(sorted);
+        } else {
+          setAllQuestions(FALLBACK_QUESTIONS);
         }
       } catch (err) {
         console.error('Error fetching site configuration:', err);
+        setAllQuestions(FALLBACK_QUESTIONS);
       } finally {
         setIsLoadingConfig(false);
       }
@@ -112,20 +117,36 @@ export default function PublicWizardPage() {
     (c) => c.id === formData.stakeholder_category_id
   );
 
-  const activeCategoryQuestions = allQuestions.filter((q: any) => {
-    if (!formData.stakeholder_category_id) return false;
-    if (q.is_active === false) return false;
-    if (q.category_id === formData.stakeholder_category_id) return true;
-    if (
-      selectedCategory &&
-      q.category &&
-      (q.category.id === selectedCategory.id || q.category.slug === selectedCategory.slug)
-    ) {
-      return true;
-    }
-    return false;
-  });
+  const getMatchingQuestionsForCategory = (catId: string) => {
+    if (!catId) return [];
+    const catObj = categories.find((c) => c.id === catId);
 
+    return allQuestions.filter((q: any) => {
+      if (q.is_active === false) return false;
+      if (q.category_id === catId) return true;
+      if (
+        catObj &&
+        q.category &&
+        (q.category.id === catObj.id || q.category.slug === catObj.slug)
+      ) {
+        return true;
+      }
+      // Fallback matching by slug/UUID suffix
+      if (catObj) {
+        const slug = catObj.slug ? catObj.slug.toLowerCase() : '';
+        if (slug.includes('student') && (q.id.includes('student') || q.category_id.endsWith('4'))) return true;
+        if (slug.includes('faculty') && (q.id.includes('faculty') || q.category_id.endsWith('2'))) return true;
+        if (slug.includes('alumni') && (q.id.includes('alumni') || q.category_id.endsWith('5'))) return true;
+        if (slug.includes('employer') && (q.id.includes('employer') || q.category_id.endsWith('3'))) return true;
+        if (slug.includes('parent') && (q.id.includes('parent') || q.category_id.endsWith('6'))) return true;
+        if (slug.includes('management') && (q.id.includes('mgmt') || q.category_id.endsWith('1'))) return true;
+        if (slug.includes('society') && (q.id.includes('soc') || q.category_id.endsWith('7'))) return true;
+      }
+      return false;
+    });
+  };
+
+  const activeCategoryQuestions = getMatchingQuestionsForCategory(formData.stakeholder_category_id);
   const isPartDActive = activeCategoryQuestions.length > 0;
   const totalWizardSteps = isPartDActive ? 4 : 3;
 
@@ -162,23 +183,7 @@ export default function PublicWizardPage() {
     }));
 
     // Find questions matching selected category
-    const matchingCategory = categories.find(
-      (c) => c.id === formData.stakeholder_category_id
-    );
-
-    const questionsForCat = allQuestions.filter((q: any) => {
-      if (!formData.stakeholder_category_id) return false;
-      if (q.is_active === false) return false;
-      if (q.category_id === formData.stakeholder_category_id) return true;
-      if (
-        matchingCategory &&
-        q.category &&
-        (q.category.id === matchingCategory.id || q.category.slug === matchingCategory.slug)
-      ) {
-        return true;
-      }
-      return false;
-    });
+    const questionsForCat = getMatchingQuestionsForCategory(formData.stakeholder_category_id);
 
     // If active category has questions, go to step 3 (Part D), else skip to step 4 (Part E)
     if (questionsForCat.length > 0) {
