@@ -175,6 +175,22 @@ create policy "public can read active mission options" on mission_options for se
 create policy "public can read active stakeholder questions" on stakeholder_questions for select using (is_active = true);
 create policy "public can read active question options" on stakeholder_question_options for select using (is_active = true);
 
+-- Public INSERT policies for feedback response tables
+drop policy if exists "public can insert responses" on responses;
+create policy "public can insert responses" on responses for insert with check (true);
+
+drop policy if exists "public can insert priority ratings" on response_priority_ratings;
+create policy "public can insert priority ratings" on response_priority_ratings for insert with check (true);
+
+drop policy if exists "public can insert mission selections" on response_mission_selections;
+create policy "public can insert mission selections" on response_mission_selections for insert with check (true);
+
+drop policy if exists "public can insert answers" on response_answers;
+create policy "public can insert answers" on response_answers for insert with check (true);
+
+drop policy if exists "public can insert suggestions" on response_suggestions;
+create policy "public can insert suggestions" on response_suggestions for insert with check (true);
+
 -- Admin FULL ACCESS policies
 create policy "admin full access settings" on site_settings for all using (is_admin()) with check (is_admin());
 create policy "admin full access categories" on stakeholder_categories for all using (is_admin()) with check (is_admin());
