@@ -63,44 +63,7 @@ const SAMPLE_MISSIONS: MissionOption[] = [
   { id: 'm-6', label: 'Industry collaboration', sort_order: 6, is_active: true },
 ];
 
-const SAMPLE_RESPONSES: FeedbackResponse[] = [
-  {
-    id: 'res-1',
-    name: 'Dr. Suresh Rao',
-    phone: '9845012345',
-    email: 'suresh.rao@bit.edu.in',
-    stakeholder_category_id: 'cat-2',
-    priority_ratings: { 'p-1': 5, 'p-2': 4, 'p-3': 5, 'p-4': 4, 'p-5': 5, 'p-6': 5 },
-    mission_commitments: [{ option_id: 'm-1' }, { option_id: 'm-2' }, { option_id: 'm-4' }],
-    stakeholder_answers: {},
-    suggestion: 'Focus on interdisciplinary research projects and AI labs.',
-    submitted_at: new Date().toISOString(),
-  },
-  {
-    id: 'res-2',
-    name: 'Ananya Sharma',
-    phone: '9123456789',
-    email: 'ananya.student@gmail.com',
-    stakeholder_category_id: 'cat-4',
-    priority_ratings: { 'p-1': 4, 'p-2': 5, 'p-3': 4, 'p-4': 5, 'p-5': 5, 'p-6': 5 },
-    mission_commitments: [{ option_id: 'm-2' }, { option_id: 'm-3' }, { option_id: 'm-6' }],
-    stakeholder_answers: {},
-    suggestion: 'More practical hands-on workshops with industry experts.',
-    submitted_at: new Date().toISOString(),
-  },
-  {
-    id: 'res-3',
-    name: 'Vikram Patel',
-    phone: '9876543210',
-    email: 'vikram.alumni@techcorp.com',
-    stakeholder_category_id: 'cat-5',
-    priority_ratings: { 'p-1': 5, 'p-2': 5, 'p-3': 4, 'p-4': 4, 'p-5': 5, 'p-6': 5 },
-    mission_commitments: [{ option_id: 'm-2' }, { option_id: 'm-5' }, { option_id: 'm-6' }],
-    stakeholder_answers: {},
-    suggestion: 'Establish an alumni mentoring portal for final year students.',
-    submitted_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
+const SAMPLE_RESPONSES: FeedbackResponse[] = [];
 
 export default function AdminDashboardPage() {
   const supabase = createClient();
@@ -110,7 +73,7 @@ export default function AdminDashboardPage() {
   const [priorityItems, setPriorityItems] = useState<PriorityItem[]>(SAMPLE_PRIORITIES);
   const [missionOptions, setMissionOptions] = useState<MissionOption[]>(SAMPLE_MISSIONS);
   const [questions, setQuestions] = useState<StakeholderQuestion[]>([]);
-  const [responses, setResponses] = useState<FeedbackResponse[]>(SAMPLE_RESPONSES);
+  const [responses, setResponses] = useState<FeedbackResponse[]>([]);
 
   const loadData = async () => {
     setLoading(true);
