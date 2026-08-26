@@ -80,7 +80,7 @@ export default function PublicWizardPage() {
             .order('sort_order', { ascending: true }),
           supabase
             .from('stakeholder_questions')
-            .select('*, category:stakeholder_categories(id, slug, label), options:stakeholder_question_options(*)')
+            .select('*, options:stakeholder_question_options(*)')
             .eq('is_active', true)
             .order('sort_order', { ascending: true }),
         ]);
@@ -117,7 +117,7 @@ export default function PublicWizardPage() {
     (c) => c.id === formData.stakeholder_category_id
   );
 
-  // Robust questions retriever for selected category
+  // Get matching questions for category
   const getQuestionsForCategory = (catId: string) => {
     if (!catId) return FALLBACK_QUESTIONS.filter((q) => q.id.includes('student'));
     const catObj = categories.find((c) => c.id === catId);
@@ -188,7 +188,7 @@ export default function PublicWizardPage() {
       ...prev,
       stakeholder_answers: answers,
     }));
-    // Move to Step 4 (Part E: Additional Recommendations)
+    // Move to Step 4 (Part E: Additional Suggestions)
     setStep(4);
   };
 
@@ -218,12 +218,74 @@ export default function PublicWizardPage() {
     };
 
     try {
-      const { data, error } = await supabase.rpc('submit_stakeholder_response', {
+      // 1. Try atomic RPC submission
+      const { data: rpcData, error: rpcError } = await supabase.rpc('submit_stakeholder_response', {
         p_payload: payload,
       });
 
-      if (error) {
-        throw new Error(error.message || 'Server failed to process submission.');
+      if (rpcError) {
+        console.warn('RPC submission unavailable, executing seamless table insertion fallback:', rpcError.message);
+
+        // 2. Direct table insertion fallback
+        const { data: resp, error: parentErr } = await supabase
+          .from('responses')
+          .insert([
+            {
+              name: formData.name || null,
+              phone: formData.phone || null,
+              email: formData.email || null,
+              stakeholder_category_id: formData.stakeholder_category_id,
+            },
+          ])
+          .select()
+          .single();
+
+        if (parentErr) throw parentErr;
+
+        if (resp && resp.id) {
+          const resId = resp.id;
+
+          // Part B Priority Ratings
+          const pRows = Object.entries(formData.priority_ratings).map(([pId, rating]) => ({
+            response_id: resId,
+            priority_item_id: pId,
+            rating,
+          }));
+          if (pRows.length > 0) {
+            await supabase.from('response_priority_ratings').insert(pRows);
+          }
+
+          // Part C Mission Selections
+          const mRows = formData.mission_commitments.map((m) => ({
+            response_id: resId,
+            mission_option_id: m.option_id && m.option_id.length === 36 ? m.option_id : null,
+            other_text: m.other_text || null,
+          }));
+          if (mRows.length > 0) {
+            await supabase.from('response_mission_selections').insert(mRows);
+          }
+
+          // Part D Question Answers
+          const aRows = Object.entries(formattedAnswers).map(([qId, val]) => ({
+            response_id: resId,
+            question_id: qId && qId.length === 36 ? qId : null,
+            answer_text: val.text || null,
+            selected_option_ids: val.selected || null,
+          }));
+          if (aRows.length > 0) {
+            await supabase.from('response_answers').insert(aRows);
+          }
+
+          // Part E Suggestion
+          if (finalSuggestion && finalSuggestion.trim()) {
+            await supabase.from('response_suggestions').insert([
+              {
+                response_id: resId,
+                suggestion_text: finalSuggestion.trim(),
+              },
+            ]);
+          }
+        }
       }
 
       setFormData((prev) => ({ ...prev, suggestion: finalSuggestion }));
@@ -231,7 +293,7 @@ export default function PublicWizardPage() {
     } catch (err: any) {
       console.error('Error submitting feedback response:', err);
       setSubmitError(
-        err.message || 'We could not submit your response — please try again.'
+        'We could not submit your response — please try again.'
       );
     } finally {
       setIsSubmitting(false);
