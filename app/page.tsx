@@ -113,8 +113,22 @@ export default function PublicWizardPage() {
   );
 
   const activeCategoryQuestions = allQuestions.filter(
-    (q) => q.category_id === formData.stakeholder_category_id
+    (q) => q.category_id === formData.stakeholder_category_id && q.is_active
   );
+
+  const isPartDActive = activeCategoryQuestions.length > 0;
+  const totalWizardSteps = isPartDActive ? 4 : 3;
+
+  // Calculate current step number for UI progress indicator
+  const getCurrentStepDisplayNumber = () => {
+    if (step === 1) return 1;
+    if (step === 2) return 2;
+    if (step === 3) return 3;
+    if (step === 4) return isPartDActive ? 4 : 3;
+    return 1;
+  };
+
+  const currentStepNumber = getCurrentStepDisplayNumber();
 
   // Wizard Navigation handlers
   const handlePartABSubmit = (data: {
@@ -157,7 +171,7 @@ export default function PublicWizardPage() {
     setIsSubmitting(true);
     setSubmitError(null);
 
-    // Re-format stakeholder answers for RPC payload
+    // Format answers for RPC payload
     const formattedAnswers: Record<string, { text?: string; selected?: any }> = {};
     Object.entries(formData.stakeholder_answers).forEach(([qId, val]) => {
       if (typeof val === 'string') {
@@ -167,83 +181,24 @@ export default function PublicWizardPage() {
       }
     });
 
-    const rpcPayload = {
-      p_name: formData.name || null,
-      p_phone: formData.phone || null,
-      p_email: formData.email || null,
-      p_stakeholder_category_id: formData.stakeholder_category_id,
-      p_priority_ratings: formData.priority_ratings,
-      p_mission_selections: formData.mission_commitments,
-      p_stakeholder_answers: formattedAnswers,
-      p_suggestion: finalSuggestion || null,
+    const payload = {
+      name: formData.name || null,
+      phone: formData.phone || null,
+      email: formData.email || null,
+      stakeholder_category_id: formData.stakeholder_category_id,
+      priority_ratings: formData.priority_ratings,
+      mission_selections: formData.mission_commitments,
+      stakeholder_answers: formattedAnswers,
+      suggestion: finalSuggestion || null,
     };
 
     try {
-      const { data, error } = await supabase.rpc('submit_feedback_response', rpcPayload);
+      const { data, error } = await supabase.rpc('submit_stakeholder_response', {
+        p_payload: payload,
+      });
 
       if (error) {
-        console.warn('RPC submission failed, attempting direct table fallback:', error.message);
-        
-        // Fallback: Direct table insertion
-        const { data: resp, error: parentErr } = await supabase
-          .from('responses')
-          .insert([
-            {
-              name: formData.name || null,
-              phone: formData.phone || null,
-              email: formData.email || null,
-              stakeholder_category_id: formData.stakeholder_category_id,
-            },
-          ])
-          .select()
-          .single();
-
-        if (parentErr) throw parentErr;
-
-        if (resp && resp.id) {
-          const resId = resp.id;
-
-          // Part B Priority Ratings
-          const pRows = Object.entries(formData.priority_ratings).map(([pId, rating]) => ({
-            response_id: resId,
-            priority_item_id: pId,
-            rating,
-          }));
-          if (pRows.length > 0) {
-            await supabase.from('response_priority_ratings').insert(pRows);
-          }
-
-          // Part C Mission Selections
-          const mRows = formData.mission_commitments.map((m) => ({
-            response_id: resId,
-            mission_option_id: m.option_id,
-            other_text: m.other_text || null,
-          }));
-          if (mRows.length > 0) {
-            await supabase.from('response_mission_selections').insert(mRows);
-          }
-
-          // Part D Question Answers
-          const aRows = Object.entries(formattedAnswers).map(([qId, val]) => ({
-            response_id: resId,
-            question_id: qId,
-            answer_text: val.text || null,
-            selected_option_ids: val.selected || null,
-          }));
-          if (aRows.length > 0) {
-            await supabase.from('response_answers').insert(aRows);
-          }
-
-          // Part E Suggestion
-          if (finalSuggestion && finalSuggestion.trim()) {
-            await supabase.from('response_suggestions').insert([
-              {
-                response_id: resId,
-                suggestion_text: finalSuggestion.trim(),
-              },
-            ]);
-          }
-        }
+        throw new Error(error.message || 'Server failed to process submission.');
       }
 
       setFormData((prev) => ({ ...prev, suggestion: finalSuggestion }));
@@ -251,17 +206,12 @@ export default function PublicWizardPage() {
     } catch (err: any) {
       console.error('Error submitting feedback response:', err);
       setSubmitError(
-        err.message || 'Failed to submit response. Please check your connection and try again.'
+        err.message || 'We could not submit your response — please try again.'
       );
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Step Progress Calculation
-  const totalWizardSteps = activeCategoryQuestions.length > 0 ? 4 : 3;
-  const currentStepNumber =
-    step === 0 ? 0 : step === 5 ? totalWizardSteps : step > 3 && activeCategoryQuestions.length === 0 ? step - 1 : step;
 
   const primaryColor = settings?.primary_color || '#1F4E79';
 
@@ -285,8 +235,8 @@ export default function PublicWizardPage() {
                   <span>
                     {step === 1 && 'Part A & B: Details & Priorities'}
                     {step === 2 && 'Part C: Mission Commitments'}
-                    {step === 3 && 'Part D: Role Questions'}
-                    {step === 4 && 'Part E: Final Suggestions'}
+                    {step === 3 && 'Part D: Role-Specific Questions'}
+                    {step === 4 && 'Part E: Additional Recommendations'}
                   </span>
                 </div>
                 <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
@@ -351,7 +301,7 @@ export default function PublicWizardPage() {
                 initialSuggestion={formData.suggestion}
                 onSubmit={handleFinalSubmit}
                 onBack={() =>
-                  setStep(activeCategoryQuestions.length > 0 ? 3 : 2)
+                  setStep(isPartDActive ? 3 : 2)
                 }
                 isSubmitting={isSubmitting}
                 submitError={submitError}

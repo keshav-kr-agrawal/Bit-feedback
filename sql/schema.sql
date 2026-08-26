@@ -124,7 +124,7 @@ create table if not exists admin_users (
 );
 
 -- ============================================================
--- ROW LEVEL SECURITY (RLS)
+-- ROW LEVEL SECURITY (RLS) ENABLEMENT & POLICIES
 -- ============================================================
 alter table site_settings enable row level security;
 alter table stakeholder_categories enable row level security;
@@ -149,18 +149,13 @@ create or replace function is_form_currently_open() returns boolean as $$
   select coalesce((select is_form_open from site_settings where id = 1), true);
 $$ language sql security definer stable;
 
--- Drop existing policies if re-running
-drop policy if exists "public read settings" on site_settings;
-drop policy if exists "public read active categories" on stakeholder_categories;
-drop policy if exists "public read active priorities" on priority_items;
-drop policy if exists "public read active mission options" on mission_options;
-drop policy if exists "public read active questions" on stakeholder_questions;
-drop policy if exists "public read active question options" on stakeholder_question_options;
-drop policy if exists "public insert responses" on responses;
-drop policy if exists "public insert response_priority_ratings" on response_priority_ratings;
-drop policy if exists "public insert response_mission_selections" on response_mission_selections;
-drop policy if exists "public insert response_answers" on response_answers;
-drop policy if exists "public insert response_suggestions" on response_suggestions;
+-- Drop existing policies for clean idempotency
+drop policy if exists "public can read site settings" on site_settings;
+drop policy if exists "public can read active stakeholder categories" on stakeholder_categories;
+drop policy if exists "public can read active priority items" on priority_items;
+drop policy if exists "public can read active mission options" on mission_options;
+drop policy if exists "public can read active stakeholder questions" on stakeholder_questions;
+drop policy if exists "public can read active question options" on stakeholder_question_options;
 
 drop policy if exists "admin full access settings" on site_settings;
 drop policy if exists "admin full access categories" on stakeholder_categories;
@@ -170,21 +165,15 @@ drop policy if exists "admin full access questions" on stakeholder_questions;
 drop policy if exists "admin full access question options" on stakeholder_question_options;
 drop policy if exists "admin read responses" on responses;
 drop policy if exists "admin delete responses" on responses;
+drop policy if exists "admin read admin_users" on admin_users;
 
--- Public READ policies
-create policy "public read settings" on site_settings for select using (true);
-create policy "public read active categories" on stakeholder_categories for select using (is_active = true);
-create policy "public read active priorities" on priority_items for select using (is_active = true);
-create policy "public read active mission options" on mission_options for select using (is_active = true);
-create policy "public read active questions" on stakeholder_questions for select using (is_active = true);
-create policy "public read active question options" on stakeholder_question_options for select using (is_active = true);
-
--- Public INSERT policies (blocked if form is closed)
-create policy "public insert responses" on responses for insert with check (is_form_currently_open());
-create policy "public insert response_priority_ratings" on response_priority_ratings for insert with check (is_form_currently_open());
-create policy "public insert response_mission_selections" on response_mission_selections for insert with check (is_form_currently_open());
-create policy "public insert response_answers" on response_answers for insert with check (is_form_currently_open());
-create policy "public insert response_suggestions" on response_suggestions for insert with check (is_form_currently_open());
+-- Public READ policies for active content tables
+create policy "public can read site settings" on site_settings for select using (true);
+create policy "public can read active stakeholder categories" on stakeholder_categories for select using (is_active = true);
+create policy "public can read active priority items" on priority_items for select using (is_active = true);
+create policy "public can read active mission options" on mission_options for select using (is_active = true);
+create policy "public can read active stakeholder questions" on stakeholder_questions for select using (is_active = true);
+create policy "public can read active question options" on stakeholder_question_options for select using (is_active = true);
 
 -- Admin FULL ACCESS policies
 create policy "admin full access settings" on site_settings for all using (is_admin()) with check (is_admin());
@@ -198,44 +187,86 @@ create policy "admin delete responses" on responses for delete using (is_admin()
 create policy "admin read admin_users" on admin_users for select using (is_admin());
 
 -- ============================================================
--- ATOMIC RESPONSE SUBMISSION RPC FUNCTION
+-- SECURE SECURITY DEFINER RPC FUNCTION FOR PUBLIC SUBMISSIONS
 -- ============================================================
-create or replace function submit_feedback_response(
-  p_name text,
-  p_phone text,
-  p_email text,
-  p_stakeholder_category_id uuid,
-  p_priority_ratings jsonb,       -- { "<priority_item_id>": rating }
-  p_mission_selections jsonb,     -- [ { "option_id": "...", "other_text": "..." } ]
-  p_stakeholder_answers jsonb,   -- { "<question_id>": { "text": "...", "selected": [...] } }
-  p_suggestion text
-) returns uuid as $$
+create or replace function submit_stakeholder_response(p_payload jsonb)
+returns jsonb as $$
 declare
   v_response_id uuid;
+  v_name text;
+  v_phone text;
+  v_email text;
+  v_category_id uuid;
+  v_priority_ratings jsonb;
+  v_mission_selections jsonb;
+  v_stakeholder_answers jsonb;
+  v_suggestion text;
+  v_mission_count int;
   v_item record;
   v_opt record;
   v_ans record;
+  v_req_q record;
+  v_provided_ans jsonb;
 begin
+  -- 1. Check if the feedback form is open
   if not is_form_currently_open() then
-    raise exception 'The feedback form is currently closed for submissions.';
+    raise exception 'This feedback form is currently closed for submissions.';
   end if;
 
-  -- 1. Insert Parent Response
+  -- 2. Extract payload fields
+  v_name := p_payload->>'name';
+  v_phone := p_payload->>'phone';
+  v_email := p_payload->>'email';
+  v_category_id := (p_payload->>'stakeholder_category_id')::uuid;
+  v_priority_ratings := p_payload->'priority_ratings';
+  v_mission_selections := p_payload->'mission_selections';
+  v_stakeholder_answers := p_payload->'stakeholder_answers';
+  v_suggestion := p_payload->>'suggestion';
+
+  -- 3. Validate Stakeholder Category
+  if v_category_id is null or not exists (
+    select 1 from stakeholder_categories where id = v_category_id and is_active = true
+  ) then
+    raise exception 'Please select a valid stakeholder category.';
+  end if;
+
+  -- 4. Server-Side Validation: Enforce Exactly 3 Mission Commitments Selected
+  v_mission_count := jsonb_array_length(coalesce(v_mission_selections, '[]'::jsonb));
+  if v_mission_count <> 3 then
+    raise exception 'Please select exactly 3 mission commitments (received %).', v_mission_count;
+  end if;
+
+  -- 5. Server-Side Validation: Required Questions Answered for Category
+  for v_req_q in 
+    select id, question_text, question_type 
+    from stakeholder_questions 
+    where category_id = v_category_id and is_required = true and is_active = true
+  loop
+    v_provided_ans := v_stakeholder_answers->(v_req_q.id::text);
+    if v_provided_ans is null or (
+      v_provided_ans->>'text' is null and 
+      (v_provided_ans->'selected' is null or jsonb_array_length(coalesce(v_provided_ans->'selected', '[]'::jsonb)) = 0)
+    ) then
+      raise exception 'Please answer the required question: "%"', v_req_q.question_text;
+    end if;
+  end loop;
+
+  -- 6. Insert Parent Response
   insert into responses (name, phone, email, stakeholder_category_id)
-  values (p_name, p_phone, p_email, p_stakeholder_category_id)
+  values (nullif(trim(v_name), ''), nullif(trim(v_phone), ''), nullif(trim(v_email), ''), v_category_id)
   returning id into v_response_id;
 
-  -- 2. Insert Priority Ratings (Part B)
-  if p_priority_ratings is not null then
-    for v_item in select * from jsonb_each_text(p_priority_ratings) loop
+  -- 7. Insert Part B Priority Ratings
+  if v_priority_ratings is not null then
+    for v_item in select * from jsonb_each_text(v_priority_ratings) loop
       insert into response_priority_ratings (response_id, priority_item_id, rating)
       values (v_response_id, v_item.key::uuid, v_item.value::int);
     end loop;
   end if;
 
-  -- 3. Insert Mission Selections (Part C)
-  if p_mission_selections is not null then
-    for v_opt in select * from jsonb_to_recordset(p_mission_selections) as x(option_id text, other_text text) loop
+  -- 8. Insert Part C Mission Selections
+  if v_mission_selections is not null then
+    for v_opt in select * from jsonb_to_recordset(v_mission_selections) as x(option_id text, other_text text) loop
       insert into response_mission_selections (response_id, mission_option_id, other_text)
       values (
         v_response_id,
@@ -245,9 +276,9 @@ begin
     end loop;
   end if;
 
-  -- 4. Insert Question Answers (Part D)
-  if p_stakeholder_answers is not null then
-    for v_ans in select * from jsonb_each(p_stakeholder_answers) loop
+  -- 9. Insert Part D Stakeholder Answers
+  if v_stakeholder_answers is not null then
+    for v_ans in select * from jsonb_each(v_stakeholder_answers) loop
       insert into response_answers (response_id, question_id, answer_text, selected_option_ids)
       values (
         v_response_id,
@@ -258,12 +289,16 @@ begin
     end loop;
   end if;
 
-  -- 5. Insert Suggestion (Part E)
-  if p_suggestion is not null and trim(p_suggestion) <> '' then
+  -- 10. Insert Part E Additional Suggestion
+  if v_suggestion is not null and trim(v_suggestion) <> '' then
     insert into response_suggestions (response_id, suggestion_text)
-    values (v_response_id, p_suggestion);
+    values (v_response_id, trim(v_suggestion));
   end if;
 
-  return v_response_id;
+  return jsonb_build_object('success', true, 'response_id', v_response_id);
 end;
 $$ language plpgsql security definer;
+
+-- Revoke public access and grant execute permissions to anon and authenticated
+revoke all on function submit_stakeholder_response(jsonb) from public;
+grant execute on function submit_stakeholder_response(jsonb) to anon, authenticated;
