@@ -32,7 +32,7 @@ export default function PublicWizardPage() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
 
   // Wizard state
-  const [step, setStep] = useState<number>(0);
+  const [step, setStep] = useState<number>(1);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',

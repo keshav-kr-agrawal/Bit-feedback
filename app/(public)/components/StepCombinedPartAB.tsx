@@ -93,6 +93,22 @@ export default function StepCombinedPartAB({
       onSubmit={handleSubmit(onFormSubmit)}
       className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 max-w-3xl mx-auto space-y-8"
     >
+      {/* FORM INTRO HEADER BANNER */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 text-[11px] font-bold uppercase tracking-wider">
+            IQAC Accreditation Exercise
+          </span>
+          <span className="text-xs text-slate-400 font-semibold">• NBA & NAAC Framework</span>
+        </div>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">
+          Stakeholder Feedback for Institute Vision & Mission
+        </h1>
+        <p className="text-sm text-slate-600 leading-relaxed">
+          Your valuable feedback will directly shape the future Vision, Mission, and strategic priorities of Bangalore Institute of Technology.
+        </p>
+      </div>
+
       {/* SECTION 1: PART A */}
       <div className="space-y-4">
         <div>
@@ -101,10 +117,10 @@ export default function StepCombinedPartAB({
             <span>•</span>
             <span>Respondent Details</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900">
             Personal & Stakeholder Information
           </h2>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-slate-600 mt-0.5">
             Please provide your contact details (optional) and select your stakeholder role (mandatory).
           </p>
         </div>
