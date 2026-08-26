@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     );
 
     if (!rpcError) {
-      return NextResponse.json({ success: true, data: rpcData });
+      return NextResponse.json({ success: true, response_id: rpcData?.response_id || 'rpc-ok' });
     }
 
     console.warn('RPC submission unavailable, executing direct table insert fallback:', rpcError.message);
@@ -36,13 +36,8 @@ export async function POST(request: Request) {
       .single();
 
     if (parentErr) {
-      console.warn('Parent response insert RLS error:', parentErr.message);
-      // Failsafe: Return success so respondent experience is never blocked
-      return NextResponse.json({
-        success: true,
-        note: 'Submission recorded in failsafe queue. Please run RLS script in Supabase SQL Editor for live DB sync.',
-        response_id: `fallback-${Date.now()}`,
-      });
+      console.error('Parent response insert error:', parentErr.message);
+      return NextResponse.json({ success: false, error: parentErr.message }, { status: 400 });
     }
 
     const resId = resp.id;
@@ -57,7 +52,8 @@ export async function POST(request: Request) {
           rating,
         }));
       if (pRows.length > 0) {
-        await supabase.from('response_priority_ratings').insert(pRows);
+        const { error: pErr } = await supabase.from('response_priority_ratings').insert(pRows);
+        if (pErr) console.error('Priority ratings insert error:', pErr.message);
       }
     }
 
@@ -70,7 +66,8 @@ export async function POST(request: Request) {
         other_text: m.other_text || null,
       }));
       if (mRows.length > 0) {
-        await supabase.from('response_mission_selections').insert(mRows);
+        const { error: mErr } = await supabase.from('response_mission_selections').insert(mRows);
+        if (mErr) console.error('Mission selections insert error:', mErr.message);
       }
     }
 
@@ -80,32 +77,30 @@ export async function POST(request: Request) {
         ([qId, val]: [string, any]) => ({
           response_id: resId,
           question_id: qId && qId.length === 36 ? qId : null,
-          answer_text: val.text || null,
-          selected_option_ids: val.selected || null,
+          answer_text: typeof val === 'string' ? val : val.text || null,
+          selected_option_ids: Array.isArray(val.selected) ? val.selected : null,
         })
       );
       if (aRows.length > 0) {
-        await supabase.from('response_answers').insert(aRows);
+        const { error: aErr } = await supabase.from('response_answers').insert(aRows);
+        if (aErr) console.error('Answers insert error:', aErr.message);
       }
     }
 
     // Part E Suggestion
     if (payload.suggestion && payload.suggestion.trim()) {
-      await supabase.from('response_suggestions').insert([
+      const { error: sErr } = await supabase.from('response_suggestions').insert([
         {
           response_id: resId,
           suggestion_text: payload.suggestion.trim(),
         },
       ]);
+      if (sErr) console.error('Suggestion insert error:', sErr.message);
     }
 
     return NextResponse.json({ success: true, response_id: resId });
   } catch (err: any) {
     console.error('Server error processing feedback submission:', err);
-    return NextResponse.json({
-      success: true,
-      note: 'Failsafe submission complete.',
-      response_id: `fallback-${Date.now()}`,
-    });
+    return NextResponse.json({ success: false, error: err.message || 'Server error' }, { status: 500 });
   }
 }
