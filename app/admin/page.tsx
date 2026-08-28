@@ -36,13 +36,14 @@ import {
 const SAMPLE_CATEGORIES: StakeholderCategory[] = [
   { id: 'cat-1', label: 'Management / Governing Body', slug: 'management', sort_order: 1, is_active: true },
   { id: 'cat-2', label: 'Faculty', slug: 'faculty', sort_order: 2, is_active: true },
-  { id: 'cat-3', label: 'Staff', slug: 'staff', sort_order: 3, is_active: true },
+  { id: 'cat-3', label: 'Technical Staff', slug: 'technical_staff', sort_order: 3, is_active: true },
   { id: 'cat-4', label: 'Student', slug: 'student', sort_order: 4, is_active: true },
   { id: 'cat-5', label: 'Alumni', slug: 'alumni', sort_order: 5, is_active: true },
   { id: 'cat-6', label: 'Parent', slug: 'parent', sort_order: 6, is_active: true },
   { id: 'cat-7', label: 'Employer / Industry', slug: 'employer', sort_order: 7, is_active: true },
   { id: 'cat-8', label: 'Academic Expert', slug: 'academic_expert', sort_order: 8, is_active: true },
   { id: 'cat-9', label: 'Society / Community', slug: 'society', sort_order: 9, is_active: true },
+  { id: 'cat-10', label: 'Other', slug: 'other', sort_order: 10, is_active: true },
 ];
 
 const SAMPLE_PRIORITIES: PriorityItem[] = [

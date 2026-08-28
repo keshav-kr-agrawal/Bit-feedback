@@ -98,9 +98,35 @@ export default function PublicWizardPage() {
 
         if (questionsRes.data && questionsRes.data.length > 0) {
           const optionsList = optionsRes.data || [];
-          const sorted = questionsRes.data.map((q: any) => {
+          const dbQuestions = questionsRes.data;
+          const activeCats = categoriesRes.data && categoriesRes.data.length > 0 ? categoriesRes.data : FALLBACK_CATEGORIES;
+
+          // Check if any active category has no questions in dbQuestions
+          const extraFallbacks: any[] = [];
+          activeCats.forEach((cat: any) => {
+            const hasQuestionsInDb = dbQuestions.some((q: any) => q.category_id === cat.id);
+            if (!hasQuestionsInDb) {
+              const catLabel = cat.label.toLowerCase();
+              const catSlug = cat.slug.toLowerCase();
+              const roleKeyword =
+                catLabel.includes('academic') || catSlug.includes('academic') ? 'academic' :
+                catLabel.includes('technical') || catLabel.includes('staff') || catSlug.includes('staff') ? 'techstaff' : '';
+
+              if (roleKeyword) {
+                const fQs = FALLBACK_QUESTIONS.filter((fq) => fq.id.toLowerCase().includes(roleKeyword)).map((fq) => ({
+                  ...fq,
+                  category_id: cat.id,
+                }));
+                extraFallbacks.push(...fQs);
+              }
+            }
+          });
+
+          const combinedQuestions = [...dbQuestions, ...extraFallbacks];
+
+          const sorted = combinedQuestions.map((q: any) => {
             let opts = optionsList.filter((o: any) => o.question_id === q.id);
-            if (opts.length === 0 && q.question_type !== 'paragraph') {
+            if ((!opts || opts.length === 0) && q.question_type !== 'paragraph') {
               const fallbackMatch = FALLBACK_QUESTIONS.find(
                 (fq) => fq.question_text.trim().toLowerCase() === q.question_text.trim().toLowerCase()
               );
@@ -110,7 +136,7 @@ export default function PublicWizardPage() {
             }
             return {
               ...q,
-              options: opts.sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0)),
+              options: (opts || []).sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0)),
             };
           });
           setAllQuestions(sorted);
@@ -161,6 +187,8 @@ export default function PublicWizardPage() {
       catLabel.includes('parent') || catSlug.includes('parent') ? 'parent' :
       catLabel.includes('management') || catLabel.includes('governing') || catSlug.includes('management') ? 'mgmt' :
       catLabel.includes('society') || catLabel.includes('community') || catSlug.includes('society') ? 'soc' :
+      catLabel.includes('academic') || catSlug.includes('academic') ? 'academic' :
+      catLabel.includes('technical') || catLabel.includes('staff') || catSlug.includes('staff') ? 'techstaff' :
       '';
 
     if (roleKeyword) {

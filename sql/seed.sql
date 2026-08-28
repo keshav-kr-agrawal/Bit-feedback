@@ -11,13 +11,13 @@ truncate table mission_options cascade;
 insert into stakeholder_categories (id, label, slug, sort_order, is_active) values
 ('10000000-0000-0000-0000-000000000001', 'Management / Governing Body', 'management', 1, true),
 ('10000000-0000-0000-0000-000000000002', 'Faculty', 'faculty', 2, true),
-('10000000-0000-0000-0000-000000000003', 'Employer / Industry', 'employer', 3, true),
+('10000000-0000-0000-0000-000000000008', 'Technical Staff', 'technical_staff', 3, true),
 ('10000000-0000-0000-0000-000000000004', 'Student', 'student', 4, true),
 ('10000000-0000-0000-0000-000000000005', 'Alumni', 'alumni', 5, true),
 ('10000000-0000-0000-0000-000000000006', 'Parent', 'parent', 6, true),
-('10000000-0000-0000-0000-000000000007', 'Society / Community', 'society', 7, true),
-('10000000-0000-0000-0000-000000000008', 'Staff', 'staff', 8, true),
-('10000000-0000-0000-0000-000000000009', 'Academic Expert', 'academic_expert', 9, true),
+('10000000-0000-0000-0000-000000000003', 'Employer / Industry', 'employer', 7, true),
+('10000000-0000-0000-0000-000000000009', 'Academic Expert', 'academic_expert', 8, true),
+('10000000-0000-0000-0000-000000000007', 'Society / Community', 'society', 9, true),
 ('10000000-0000-0000-0000-000000000010', 'Other', 'other', 10, true);
 
 -- 2. PART B: INSTITUTIONAL PRIORITY ITEMS (12 items)
@@ -216,3 +216,52 @@ insert into stakeholder_question_options (question_id, option_label, option_grou
 ('40000000-0000-0000-0000-000000000019', 'Innovation for social benefit', 'option', 7),
 ('40000000-0000-0000-0000-000000000019', 'Employment generation', 'option', 8),
 ('40000000-0000-0000-0000-000000000019', 'National development', 'option', 9);
+
+-- ACADEMIC EXPERT (cat-9)
+insert into stakeholder_questions (id, category_id, question_text, question_type, is_required, sort_order, is_active) values
+('40000000-0000-0000-0000-000000000022', '10000000-0000-0000-0000-000000000009', 'Which academic and professional qualities should graduates of our Institute possess?', 'multiple_choice_grid', true, 1, true),
+('40000000-0000-0000-0000-000000000023', '10000000-0000-0000-0000-000000000009', 'Which areas should the Institute strengthen to enhance academic quality and graduate readiness?', 'checkboxes', true, 2, true),
+('40000000-0000-0000-0000-000000000024', '10000000-0000-0000-0000-000000000009', 'What should be the major academic focus of the Institute over the next decade?', 'paragraph', false, 3, true);
+
+insert into stakeholder_question_options (question_id, option_label, option_group, sort_order) values
+('40000000-0000-0000-0000-000000000022', 'Strong technical knowledge', 'row', 1),
+('40000000-0000-0000-0000-000000000022', 'Problem-solving ability', 'row', 2),
+('40000000-0000-0000-0000-000000000022', 'Practical skills', 'row', 3),
+('40000000-0000-0000-0000-000000000022', 'Communication skills', 'row', 4),
+('40000000-0000-0000-0000-000000000022', 'Teamwork', 'row', 5),
+('40000000-0000-0000-0000-000000000022', 'Leadership', 'row', 6),
+('40000000-0000-0000-0000-000000000022', 'Adaptability', 'row', 7),
+('40000000-0000-0000-0000-000000000022', 'Research aptitude', 'row', 8),
+('40000000-0000-0000-0000-000000000022', 'Innovation', 'row', 9),
+('40000000-0000-0000-0000-000000000022', 'Professional ethics', 'row', 10),
+('40000000-0000-0000-0000-000000000022', 'Lifelong learning', 'row', 11),
+('40000000-0000-0000-0000-000000000022', 'Not Important', 'column', 1),
+('40000000-0000-0000-0000-000000000022', 'Somewhat Important', 'column', 2),
+('40000000-0000-0000-0000-000000000022', 'Important', 'column', 3),
+('40000000-0000-0000-0000-000000000022', 'Very Important', 'column', 4),
+
+('40000000-0000-0000-0000-000000000023', 'Curriculum aligned with emerging technologies', 'option', 1),
+('40000000-0000-0000-0000-000000000023', 'Outcome-Based Education', 'option', 2),
+('40000000-0000-0000-0000-000000000023', 'Research and innovation', 'option', 3),
+('40000000-0000-0000-0000-000000000023', 'Industry–academia collaboration', 'option', 4),
+('40000000-0000-0000-0000-000000000023', 'Internships/projects', 'option', 5),
+('40000000-0000-0000-0000-000000000023', 'Professional certifications', 'option', 6),
+('40000000-0000-0000-0000-000000000023', 'Entrepreneurship', 'option', 7),
+('40000000-0000-0000-0000-000000000023', 'Faculty development', 'option', 8),
+('40000000-0000-0000-0000-000000000023', 'Interdisciplinary learning', 'option', 9),
+('40000000-0000-0000-0000-000000000023', 'Skill development', 'option', 10);
+
+-- TECHNICAL STAFF (cat-8)
+insert into stakeholder_questions (id, category_id, question_text, question_type, is_required, sort_order, is_active) values
+('40000000-0000-0000-0000-000000000025', '10000000-0000-0000-0000-000000000008', 'Which areas should be improved for effective functioning of laboratories?', 'checkboxes', true, 1, true),
+('40000000-0000-0000-0000-000000000026', '10000000-0000-0000-0000-000000000008', 'What improvements or support from the Institute would help you contribute more effectively to laboratory activities?', 'paragraph', false, 2, true),
+('40000000-0000-0000-0000-000000000027', '10000000-0000-0000-0000-000000000008', 'What major practical or technical focus should be reflected in the future Department Vision and Mission?', 'paragraph', false, 3, true);
+
+insert into stakeholder_question_options (question_id, option_label, option_group, sort_order) values
+('40000000-0000-0000-0000-000000000025', 'Laboratory equipment', 'option', 1),
+('40000000-0000-0000-0000-000000000025', 'Software/tools', 'option', 2),
+('40000000-0000-0000-0000-000000000025', 'Maintenance', 'option', 3),
+('40000000-0000-0000-0000-000000000025', 'Safety', 'option', 4),
+('40000000-0000-0000-0000-000000000025', 'Technical training', 'option', 5),
+('40000000-0000-0000-0000-000000000025', 'Student support', 'option', 6),
+('40000000-0000-0000-0000-000000000025', 'Emerging technologies', 'option', 7);
