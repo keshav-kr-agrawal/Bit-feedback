@@ -36,7 +36,7 @@ export default function AdminNav() {
     { label: 'Categories', href: '/admin/stakeholders', icon: Users },
     { label: 'Priority Items', href: '/admin/priorities', icon: Star },
     { label: 'Mission Options', href: '/admin/mission-options', icon: CheckSquare },
-    { label: 'Question Builder', href: '/admin/questions', icon: HelpCircle },
+    { label: 'Questions Console', href: '/admin/questions', icon: HelpCircle },
   ];
 
   return (
@@ -45,15 +45,15 @@ export default function AdminNav() {
         <div className="flex items-center justify-between h-16">
           {/* Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center font-bold text-white shadow-sm">
-              <Building2 className="w-5 h-5" />
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 shadow-sm flex-shrink-0">
+              <img src="/bit.jpg" alt="BIT Logo" className="w-full h-full object-contain" />
             </div>
             <div>
-              <span className="font-bold text-base tracking-tight block leading-tight">
-                IQAC Feedback CMS
+              <span className="font-bold text-sm sm:text-base tracking-tight block leading-tight text-white">
+                Bangalore Institute of Technology
               </span>
-              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">
-                NBA/NAAC Admin Panel
+              <span className="text-[11px] text-blue-300 font-medium block">
+                An Autonomous Institution under VTU, Belagavi
               </span>
             </div>
           </div>

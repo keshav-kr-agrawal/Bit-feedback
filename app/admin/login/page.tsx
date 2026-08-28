@@ -63,15 +63,15 @@ function AdminLoginForm() {
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 max-w-md w-full space-y-6">
       <div className="text-center space-y-2">
-        <div className="w-12 h-12 bg-blue-900 text-white rounded-xl mx-auto flex items-center justify-center shadow-sm">
-          <Building2 className="w-7 h-7 text-blue-300" />
+        <div className="w-16 h-16 bg-white rounded-2xl mx-auto flex items-center justify-center p-1.5 shadow-md border border-slate-100">
+          <img src="/bit.jpg" alt="BIT Logo" className="w-full h-full object-contain" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
             Bangalore Institute of Technology
           </h1>
-          <p className="text-xs font-semibold text-blue-900 uppercase tracking-wider mt-0.5">
-            IQAC Stakeholder Feedback Admin CMS
+          <p className="text-xs font-semibold text-slate-600 mt-1">
+            An Autonomous Institution under VTU, Belagavi
           </p>
         </div>
       </div>
@@ -136,7 +136,7 @@ function AdminLoginForm() {
 
       <div className="text-center pt-2 border-t border-slate-100">
         <p className="text-xs text-slate-400">
-          Bangalore Institute of Technology • IQAC Office
+          Bangalore Institute of Technology • An Autonomous Institution under VTU, Belagavi
         </p>
       </div>
     </div>

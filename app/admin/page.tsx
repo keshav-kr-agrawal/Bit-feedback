@@ -257,7 +257,7 @@ export default function AdminDashboardPage() {
               Bangalore Institute of Technology — Admin Analytics
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Real-time response breakdown for NBA/NAAC Vision & Mission feedback exercise.
+              Real-time response breakdown for BIT Vision & Mission feedback exercise.
             </p>
           </div>
 
