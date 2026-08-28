@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import AdminNav from '../components/AdminNav';
 import { createClient } from '@/lib/supabase/client';
 import { StakeholderCategory, StakeholderQuestion, QuestionType } from '@/lib/types';
+import { FALLBACK_CATEGORIES, FALLBACK_QUESTIONS } from '@/lib/sampleData';
 import {
   HelpCircle,
   Plus,
@@ -13,45 +14,32 @@ import {
   Loader2,
   Power,
   Users,
-  Search,
+  Eye,
   Filter,
+  Search,
   CheckCircle2,
   Layers,
-  Tag,
-  Eye,
-  Sparkles,
-  AlertCircle,
 } from 'lucide-react';
-
-interface ExtendedQuestion extends StakeholderQuestion {
-  category?: {
-    id: string;
-    label: string;
-    slug: string;
-  };
-}
 
 export default function AdminQuestionsPage() {
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState<StakeholderCategory[]>([]);
-  const [allQuestions, setAllQuestions] = useState<ExtendedQuestion[]>([]);
-
-  // Filtering & View state
+  const [categories, setCategories] = useState<StakeholderCategory[]>(FALLBACK_CATEGORIES);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [allQuestionsList, setAllQuestionsList] = useState<StakeholderQuestion[]>([]);
+  
+  // View Mode: 'all' = All Current Questions Overview, 'category' = Manage Single Category
   const [viewMode, setViewMode] = useState<'all' | 'category'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterCategoryId, setFilterCategoryId] = useState<string>('all');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingQuestion, setEditingQuestion] = useState<ExtendedQuestion | null>(null);
+  const [editingQuestion, setEditingQuestion] = useState<StakeholderQuestion | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Form State
-  const [formCategoryId, setFormCategoryId] = useState<string>('');
+  const [formCategoryId, setFormCategoryId] = useState('');
   const [formText, setFormText] = useState('');
   const [formType, setFormType] = useState<QuestionType>('checkboxes');
   const [formOptions, setFormOptions] = useState<string[]>([]);
@@ -60,118 +48,81 @@ export default function AdminQuestionsPage() {
   const [formSortOrder, setFormSortOrder] = useState(1);
   const [formActive, setFormActive] = useState(true);
 
-  const loadData = async () => {
+  const fetchAllData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch categories
-      const { data: cats, error: catErr } = await supabase
+      // Fetch Categories
+      const { data: catData, error: catErr } = await supabase
         .from('stakeholder_categories')
         .select('*')
         .order('sort_order', { ascending: true });
 
-      if (catErr) throw catErr;
-      if (cats) {
-        setCategories(cats);
-        if (cats.length > 0 && !formCategoryId) {
-          setFormCategoryId(cats[0].id);
-        }
+      const loadedCats = (catData && catData.length > 0) ? catData : FALLBACK_CATEGORIES;
+      setCategories(loadedCats);
+      if (loadedCats.length > 0 && !selectedCategoryId) {
+        setSelectedCategoryId(loadedCats[0].id);
       }
 
-      // 2. Fetch all questions with category and options
-      const { data: qData, error: qErr } = await supabase
-        .from('stakeholder_questions')
-        .select(`
-          *,
-          category:stakeholder_categories(id, label, slug),
-          options:stakeholder_question_options(*)
-        `)
-        .order('sort_order', { ascending: true });
-
-      if (qErr) {
-        // Fallback without join if foreign key alias differs
-        const { data: fallbackData } = await supabase
+      // Fetch Questions & Options
+      const [questionsRes, optionsRes] = await Promise.all([
+        supabase
           .from('stakeholder_questions')
-          .select('*, options:stakeholder_question_options(*)')
-          .order('sort_order', { ascending: true });
+          .select('*')
+          .order('sort_order', { ascending: true }),
+        supabase
+          .from('stakeholder_question_options')
+          .select('*')
+          .order('sort_order', { ascending: true }),
+      ]);
 
-        if (fallbackData) {
-          const mapWithCat = fallbackData.map((q: any) => ({
+      if (questionsRes.data && questionsRes.data.length > 0) {
+        const optionsList = optionsRes.data || [];
+        const combined = questionsRes.data.map((q: any) => {
+          let opts = optionsList.filter((o: any) => o.question_id === q.id);
+          if (opts.length === 0 && q.question_type !== 'paragraph') {
+            const fallbackMatch = FALLBACK_QUESTIONS.find(
+              (fq) => fq.question_text.trim().toLowerCase() === q.question_text.trim().toLowerCase()
+            );
+            if (fallbackMatch && fallbackMatch.options) {
+              opts = fallbackMatch.options;
+            }
+          }
+          return {
             ...q,
-            category: cats?.find((c) => c.id === q.category_id),
-          }));
-          setAllQuestions(mapWithCat);
-        }
-      } else if (qData) {
-        // Attach category object if null
-        const enriched = qData.map((q: any) => ({
-          ...q,
-          category: q.category || cats?.find((c) => c.id === q.category_id),
-        }));
-        setAllQuestions(enriched);
+            options: opts.sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0)),
+          };
+        });
+        setAllQuestionsList(combined);
+      } else {
+        setAllQuestionsList(FALLBACK_QUESTIONS);
       }
     } catch (err: any) {
-      console.error('Error loading questions data:', err);
+      console.error('Error fetching admin questions:', err);
+      setAllQuestionsList(FALLBACK_QUESTIONS);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    fetchAllData();
   }, []);
 
-  // Filtered Questions list logic
-  const filteredQuestions = useMemo(() => {
-    return allQuestions.filter((q) => {
-      // Category Filter
-      if (filterCategoryId !== 'all' && q.category_id !== filterCategoryId) {
-        return false;
-      }
-      // Type Filter
-      if (filterType !== 'all' && q.question_type !== filterType) {
-        return false;
-      }
-      // Status Filter
-      if (filterStatus === 'active' && !q.is_active) return false;
-      if (filterStatus === 'disabled' && q.is_active) return false;
-
-      // Search Query
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const textMatch = q.question_text.toLowerCase().includes(query);
-        const catMatch = q.category?.label.toLowerCase().includes(query);
-        const optionMatch = Array.isArray(q.options)
-          ? q.options.some((o: any) =>
-              (typeof o === 'string' ? o : o.option_label).toLowerCase().includes(query)
-            )
-          : false;
-        return textMatch || catMatch || optionMatch;
-      }
-
-      return true;
-    });
-  }, [allQuestions, filterCategoryId, filterType, filterStatus, searchQuery]);
-
-  // Statistics
-  const totalQuestionsCount = allQuestions.length;
-  const activeQuestionsCount = allQuestions.filter((q) => q.is_active).length;
-  const categoriesCount = categories.length;
-  const requiredQuestionsCount = allQuestions.filter((q) => q.is_required).length;
-
-  const openCreateModal = () => {
+  const openCreateModal = (catId?: string) => {
+    const targetCatId = catId || selectedCategoryId || (categories[0]?.id ?? '');
     setEditingQuestion(null);
-    setFormCategoryId(filterCategoryId !== 'all' ? filterCategoryId : categories[0]?.id || '');
+    setFormCategoryId(targetCatId);
     setFormText('');
     setFormType('checkboxes');
     setFormOptions([]);
     setNewOptionInput('');
     setFormRequired(true);
-    setFormSortOrder(allQuestions.length + 1);
+    setFormSortOrder(allQuestionsList.filter((q) => q.category_id === targetCatId).length + 1);
     setFormActive(true);
     setIsModalOpen(true);
   };
 
-  const openEditModal = (q: ExtendedQuestion) => {
+  const openEditModal = (q: StakeholderQuestion) => {
     setEditingQuestion(q);
     setFormCategoryId(q.category_id);
     setFormText(q.question_text);
@@ -203,10 +154,6 @@ export default function AdminQuestionsPage() {
     e.preventDefault();
     if (!formText.trim()) {
       alert('Please enter question text.');
-      return;
-    }
-    if (!formCategoryId) {
-      alert('Please select a stakeholder category.');
       return;
     }
 
@@ -272,7 +219,7 @@ export default function AdminQuestionsPage() {
         await supabase.from('stakeholder_question_options').insert(optionRecords);
       }
 
-      await loadData();
+      await fetchAllData();
       setIsModalOpen(false);
     } catch (err: any) {
       alert(`Failed to save question: ${err.message}`);
@@ -281,7 +228,7 @@ export default function AdminQuestionsPage() {
     }
   };
 
-  const toggleActive = async (q: ExtendedQuestion) => {
+  const toggleActive = async (q: StakeholderQuestion) => {
     try {
       const { error } = await supabase
         .from('stakeholder_questions')
@@ -290,7 +237,7 @@ export default function AdminQuestionsPage() {
 
       if (error) throw error;
 
-      setAllQuestions((prev) =>
+      setAllQuestionsList((prev) =>
         prev.map((item) => (item.id === q.id ? { ...item, is_active: !q.is_active } : item))
       );
     } catch (err: any) {
@@ -298,8 +245,8 @@ export default function AdminQuestionsPage() {
     }
   };
 
-  const handleDelete = async (q: ExtendedQuestion) => {
-    if (!confirm(`Are you sure you want to delete question: "${q.question_text}"?`)) {
+  const handleDelete = async (q: StakeholderQuestion) => {
+    if (!confirm(`Are you sure you want to delete question "${q.question_text}"?`)) {
       return;
     }
 
@@ -310,368 +257,431 @@ export default function AdminQuestionsPage() {
         .eq('id', q.id);
 
       if (error) {
-        // Soft disable if foreign key constraints exist
         await supabase
           .from('stakeholder_questions')
           .update({ is_active: false })
           .eq('id', q.id);
       }
 
-      await loadData();
+      await fetchAllData();
     } catch (err: any) {
       alert(`Error deleting question: ${err.message}`);
     }
   };
 
-  // Helper for Category badge colors
-  const getCategoryBadgeClass = (slug?: string) => {
-    switch (slug) {
-      case 'student':
-        return 'bg-blue-50 text-blue-800 border-blue-200';
-      case 'faculty':
-        return 'bg-emerald-50 text-emerald-800 border-emerald-200';
-      case 'employer':
-        return 'bg-purple-50 text-purple-800 border-purple-200';
-      case 'alumni':
-        return 'bg-amber-50 text-amber-800 border-amber-200';
-      case 'parent':
-        return 'bg-rose-50 text-rose-800 border-rose-200';
-      case 'management':
-        return 'bg-indigo-50 text-indigo-800 border-indigo-200';
-      default:
-        return 'bg-slate-100 text-slate-700 border-slate-200';
-    }
+  // Helper to resolve category label/slug for a question
+  const getCategoryForQuestion = (q: StakeholderQuestion) => {
+    return categories.find((c) => c.id === q.category_id) || {
+      id: q.category_id,
+      label: 'General Stakeholder',
+      slug: 'general',
+      sort_order: 99,
+      is_active: true,
+    };
   };
+
+  // Filtered questions based on search and selected view
+  const filteredQuestions = allQuestionsList.filter((q) => {
+    if (viewMode === 'category' && selectedCategoryId && q.category_id !== selectedCategoryId) {
+      return false;
+    }
+    if (searchQuery.trim()) {
+      const qTextMatch = q.question_text.toLowerCase().includes(searchQuery.toLowerCase());
+      const cat = getCategoryForQuestion(q);
+      const catMatch = cat.label.toLowerCase().includes(searchQuery.toLowerCase());
+      return qTextMatch || catMatch;
+    }
+    return true;
+  });
+
+  // Group questions by category
+  const questionsByCategoryMap = categories.map((cat) => {
+    const questionsInCat = filteredQuestions.filter((q) => q.category_id === cat.id);
+    return {
+      category: cat,
+      questions: questionsInCat,
+    };
+  });
+
+  // Also catch any orphan questions that don't match loaded categories
+  const orphanQuestions = filteredQuestions.filter(
+    (q) => !categories.some((c) => c.id === q.category_id)
+  );
 
   return (
     <div className="min-h-screen bg-[#F8F9FB] flex flex-col">
       <AdminNav />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
-        {/* Header Bar */}
+        {/* Top Header Banner */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <div>
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-900 mb-1">
-              <HelpCircle className="w-4 h-4 text-blue-900" />
-              <span>Bangalore Institute of Technology — Admin Portal</span>
+            <div className="flex items-center gap-2 text-blue-900 font-bold text-xs uppercase tracking-wider mb-1">
+              <HelpCircle className="w-4 h-4" />
+              <span>Feedback CMS • Question Console</span>
             </div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Current Questions Console
+              All Current Questions Overview
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Manage and view all current stakeholder feedback questions configured across all categories.
+              View all active stakeholder feedback questions across categories without having to answer them.
             </p>
           </div>
 
-          <button
-            onClick={openCreateModal}
-            className="px-5 py-3 bg-blue-900 hover:bg-blue-950 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all hover:shadow self-start md:self-auto"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add New Question</span>
-          </button>
-        </div>
-
-        {/* Overview Stat Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-              Total Questions
-            </span>
-            <div className="text-2xl font-bold text-slate-900 flex items-center justify-between">
-              <span>{totalQuestionsCount}</span>
-              <Layers className="w-5 h-5 text-blue-600 opacity-80" />
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-              Active Questions
-            </span>
-            <div className="text-2xl font-bold text-emerald-700 flex items-center justify-between">
-              <span>{activeQuestionsCount}</span>
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 opacity-80" />
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-              Categories Configured
-            </span>
-            <div className="text-2xl font-bold text-indigo-700 flex items-center justify-between">
-              <span>{categoriesCount}</span>
-              <Users className="w-5 h-5 text-indigo-600 opacity-80" />
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-              Mandatory Questions
-            </span>
-            <div className="text-2xl font-bold text-amber-700 flex items-center justify-between">
-              <span>{requiredQuestionsCount}</span>
-              <Tag className="w-5 h-5 text-amber-600 opacity-80" />
-            </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => openCreateModal()}
+              className="px-4 py-2.5 bg-blue-900 hover:bg-blue-950 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add New Question</span>
+            </button>
           </div>
         </div>
 
-        {/* Filter and Search Bar */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-            {/* Search Input */}
+        {/* Navigation & Controls Bar */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* Mode Switcher Tabs */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
+            <button
+              onClick={() => setViewMode('all')}
+              className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                viewMode === 'all'
+                  ? 'bg-white text-blue-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Eye className="w-4 h-4 text-blue-800" />
+              <span>All Questions Overview ({allQuestionsList.length})</span>
+            </button>
+
+            <button
+              onClick={() => setViewMode('category')}
+              className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                viewMode === 'category'
+                  ? 'bg-white text-blue-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Filter className="w-4 h-4 text-slate-500" />
+              <span>Filter by Category</span>
+            </button>
+          </div>
+
+          {/* Search / Category Filter Controls */}
+          <div className="flex items-center gap-3 w-full sm:w-auto flex-1 max-w-md">
+            {viewMode === 'category' && (
+              <select
+                value={selectedCategoryId}
+                onChange={(e) => setSelectedCategoryId(e.target.value)}
+                className="px-3.5 py-2 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-xs font-semibold focus:bg-white focus:outline-none focus:border-slate-500"
+              >
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.label} ({cat.slug})
+                  </option>
+                ))}
+              </select>
+            )}
+
             <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search questions by text, category, or options..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-sm focus:bg-white focus:outline-none focus:border-slate-500 transition-colors"
+                placeholder="Search questions or categories..."
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-xs font-medium focus:bg-white focus:outline-none focus:border-slate-500"
               />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
             </div>
-
-            {/* Filter Dropdowns */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* Category Filter */}
-              <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-                <Users className="w-3.5 h-3.5 text-slate-500" />
-                <select
-                  value={filterCategoryId}
-                  onChange={(e) => setFilterCategoryId(e.target.value)}
-                  className="bg-transparent text-slate-800 text-xs font-semibold focus:outline-none cursor-pointer"
-                >
-                  <option value="all">All Categories ({categories.length})</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Type Filter */}
-              <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-                <Filter className="w-3.5 h-3.5 text-slate-500" />
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="bg-transparent text-slate-800 text-xs font-semibold focus:outline-none cursor-pointer"
-                >
-                  <option value="all">All Question Types</option>
-                  <option value="checkboxes">Checkboxes</option>
-                  <option value="paragraph">Paragraph</option>
-                  <option value="multiple_choice">Multiple Choice</option>
-                  <option value="multiple_choice_grid">Multiple Choice Grid</option>
-                  <option value="rating_scale">Rating Scale</option>
-                </select>
-              </div>
-
-              {/* Status Filter */}
-              <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-                <Power className="w-3.5 h-3.5 text-slate-500" />
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="bg-transparent text-slate-800 text-xs font-semibold focus:outline-none cursor-pointer"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="active">Active Only</option>
-                  <option value="disabled">Disabled Only</option>
-                </select>
-              </div>
-
-              {(filterCategoryId !== 'all' ||
-                filterType !== 'all' ||
-                filterStatus !== 'all' ||
-                searchQuery !== '') && (
-                <button
-                  onClick={() => {
-                    setFilterCategoryId('all');
-                    setFilterType('all');
-                    setFilterStatus('all');
-                    setSearchQuery('');
-                  }}
-                  className="px-3 py-2 rounded-xl text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
-                >
-                  Reset Filters
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500 font-medium">
-            <span>
-              Showing <strong>{filteredQuestions.length}</strong> of <strong>{allQuestions.length}</strong> questions
-            </span>
-
-            {filterCategoryId !== 'all' && (
-              <span className="text-blue-900 font-semibold">
-                Category Filter: {categories.find((c) => c.id === filterCategoryId)?.label}
-              </span>
-            )}
           </div>
         </div>
 
-        {/* Questions Display Table / List */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-500">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-900" />
-              <p className="text-sm font-medium">Loading All Current Questions...</p>
-            </div>
-          ) : filteredQuestions.length === 0 ? (
-            <div className="p-12 text-center text-slate-500 text-sm space-y-3">
-              <AlertCircle className="w-10 h-10 text-slate-300 mx-auto" />
-              <p className="font-semibold text-slate-700">No questions found matching your criteria.</p>
-              <p className="text-xs text-slate-400">
-                Try adjusting your search keywords or resetting filters.
-              </p>
+        {/* Questions Content Section */}
+        {loading ? (
+          <div className="bg-white rounded-2xl p-16 border border-slate-200 flex flex-col items-center justify-center gap-3 text-slate-500">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-900" />
+            <p className="text-sm font-medium">Loading All Current Questions...</p>
+          </div>
+        ) : viewMode === 'all' ? (
+          /* ALL QUESTIONS OVERVIEW (GROUPED BY CATEGORY) */
+          <div className="space-y-8">
+            {questionsByCategoryMap.map(({ category, questions }) => {
+              if (searchQuery.trim() && questions.length === 0) return null;
+
+              return (
+                <div
+                  key={category.id}
+                  className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+                >
+                  {/* Category Header Bar */}
+                  <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white text-xs">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base tracking-tight text-white">
+                          {category.label}
+                        </h3>
+                        <p className="text-xs text-slate-400">
+                          Slug: <code className="text-blue-300 font-mono">{category.slug}</code> • {questions.length} questions configured
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => openCreateModal(category.id)}
+                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-blue-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Question</span>
+                    </button>
+                  </div>
+
+                  {/* Category Questions List */}
+                  {questions.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400 text-xs">
+                      No questions configured for {category.label} yet.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {questions.map((q) => (
+                        <div key={q.id} className="p-6 hover:bg-slate-50/70 transition-colors space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                            <div className="space-y-2 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                                  #{q.sort_order}
+                                </span>
+                                <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-900 border border-blue-200">
+                                  Type: {q.question_type}
+                                </span>
+                                {q.is_required ? (
+                                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">
+                                    Mandatory
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                                    Optional
+                                  </span>
+                                )}
+                              </div>
+
+                              <h4 className="text-base font-bold text-slate-900 leading-snug">
+                                {q.question_text}
+                              </h4>
+                            </div>
+
+                            {/* Status & Action Buttons */}
+                            <div className="flex items-center gap-2 self-start sm:self-center">
+                              <button
+                                onClick={() => toggleActive(q)}
+                                className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                  q.is_active
+                                    ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                }`}
+                              >
+                                <Power className="w-3 h-3" />
+                                <span>{q.is_active ? 'Active' : 'Disabled'}</span>
+                              </button>
+
+                              <button
+                                onClick={() => openEditModal(q)}
+                                className="p-2 rounded-lg bg-blue-50 text-blue-800 hover:bg-blue-100 transition-colors"
+                                title="Edit Question"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+
+                              <button
+                                onClick={() => handleDelete(q)}
+                                className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                                title="Delete Question"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Options Preview Box (Read-only without answering) */}
+                          {Array.isArray(q.options) && q.options.length > 0 ? (
+                            <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2">
+                              <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                <span>Configured Choices / Options ({q.options.length})</span>
+                                <span>Preview Only</span>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {q.options.map((opt: any, idx: number) => {
+                                  const lbl = typeof opt === 'string' ? opt : opt.option_label;
+                                  const grp = typeof opt === 'object' ? opt.option_group : 'option';
+                                  return (
+                                    <span
+                                      key={idx}
+                                      className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${
+                                        grp === 'row'
+                                          ? 'bg-amber-50 text-amber-900 border-amber-200'
+                                          : grp === 'column'
+                                          ? 'bg-purple-50 text-purple-900 border-purple-200'
+                                          : 'bg-white text-slate-800 border-slate-200 shadow-2xs'
+                                      }`}
+                                    >
+                                      {grp === 'row' ? 'Row: ' : grp === 'column' ? 'Scale: ' : ''}{lbl}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : q.question_type === 'paragraph' ? (
+                            <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs font-medium text-slate-500 italic">
+                              Free-text paragraph response area (No fixed options required)
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Orphan questions fallback */}
+            {orphanQuestions.length > 0 && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="bg-slate-800 text-white px-6 py-4">
+                  <h3 className="font-bold text-base text-white">Other System Questions</h3>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {orphanQuestions.map((q) => (
+                    <div key={q.id} className="p-6 space-y-2">
+                      <h4 className="font-bold text-slate-900">{q.question_text}</h4>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* SINGLE CATEGORY MANAGEMENT VIEW */
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">
+                  Category: {categories.find((c) => c.id === selectedCategoryId)?.label}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Showing questions configured for this specific category.
+                </p>
+              </div>
+
               <button
-                onClick={openCreateModal}
-                className="px-4 py-2 bg-blue-900 text-white text-xs font-semibold rounded-xl hover:bg-blue-950 transition-colors inline-flex items-center gap-2"
+                onClick={() => openCreateModal(selectedCategoryId)}
+                className="px-3.5 py-2 bg-blue-900 text-white text-xs font-semibold rounded-xl hover:bg-blue-950 transition-colors inline-flex items-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Question</span>
               </button>
             </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {filteredQuestions.map((q) => {
-                const catLabel = q.category?.label || 'General Category';
-                const catSlug = q.category?.slug;
-                const optionsList = Array.isArray(q.options) ? q.options : [];
 
-                return (
+            {filteredQuestions.length === 0 ? (
+              <div className="p-12 text-center text-slate-500 text-sm space-y-3">
+                <p>No questions configured for this category yet.</p>
+                <button
+                  onClick={() => openCreateModal(selectedCategoryId)}
+                  className="px-4 py-2 bg-blue-900 text-white text-xs font-semibold rounded-xl hover:bg-blue-950 transition-colors inline-flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add First Question</span>
+                </button>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {filteredQuestions.map((q) => (
                   <div
                     key={q.id}
-                    className="p-5 flex flex-col lg:flex-row lg:items-start justify-between gap-5 hover:bg-slate-50/80 transition-colors"
+                    className="p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4 hover:bg-slate-50/80 transition-colors"
                   >
                     <div className="space-y-2 flex-1">
-                      {/* Top Metadata Badges */}
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
                           #{q.sort_order}
                         </span>
-
-                        {/* Stakeholder Category Badge */}
-                        <span
-                          className={`text-xs font-bold tracking-tight px-3 py-0.5 rounded-full border ${getCategoryBadgeClass(
-                            catSlug
-                          )}`}
-                        >
-                          {catLabel}
+                        <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-900 border border-blue-200">
+                          {q.question_type}
                         </span>
-
-                        {/* Question Type Badge */}
-                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
-                          {q.question_type.replace(/_/g, ' ')}
-                        </span>
-
-                        {/* Required Badge */}
-                        {q.is_required ? (
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">
+                        {q.is_required && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-red-50 text-red-700">
                             Required
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-semibold text-slate-400">
-                            Optional
                           </span>
                         )}
                       </div>
 
-                      {/* Question Text */}
-                      <h3 className="text-base font-bold text-slate-900 leading-snug">
+                      <h4 className="text-base font-semibold text-slate-900 leading-snug">
                         {q.question_text}
-                      </h3>
+                      </h4>
 
-                      {/* Options / Grid Preview */}
-                      {optionsList.length > 0 && (
-                        <div className="pt-1.5 space-y-1">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                            Configured Options ({optionsList.length}):
-                          </span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {optionsList.map((opt: any, idx: number) => {
-                              const lbl = typeof opt === 'string' ? opt : opt.option_label;
-                              const grp = typeof opt === 'object' ? opt.option_group : 'option';
-                              return (
-                                <span
-                                  key={idx}
-                                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200/80 flex items-center gap-1"
-                                >
-                                  {grp && grp !== 'option' && (
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase">
-                                      [{grp}]
-                                    </span>
-                                  )}
-                                  <span>{lbl}</span>
-                                </span>
-                              );
-                            })}
-                          </div>
+                      {Array.isArray(q.options) && q.options.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {q.options.map((opt: any, idx: number) => {
+                            const lbl = typeof opt === 'string' ? opt : opt.option_label;
+                            return (
+                              <span
+                                key={idx}
+                                className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200"
+                              >
+                                {lbl}
+                              </span>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
 
-                    {/* Action Controls */}
-                    <div className="flex items-center gap-2.5 self-start lg:self-center flex-shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 w-full lg:w-auto justify-end">
+                    <div className="flex items-center gap-3 self-start sm:self-center">
                       <button
                         onClick={() => toggleActive(q)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
                           q.is_active
                             ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
                             : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                         }`}
                       >
-                        <Power className="w-3.5 h-3.5" />
+                        <Power className="w-3 h-3" />
                         <span>{q.is_active ? 'Active' : 'Disabled'}</span>
                       </button>
 
                       <button
                         onClick={() => openEditModal(q)}
-                        className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-800 hover:bg-blue-100 font-semibold text-xs transition-colors flex items-center gap-1.5 border border-blue-200"
+                        className="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
                         title="Edit Question"
                       >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        <span>Edit</span>
+                        <Edit2 className="w-4 h-4" />
                       </button>
 
                       <button
                         onClick={() => handleDelete(q)}
-                        className="p-2 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 transition-colors border border-red-200"
+                        className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
                         title="Delete Question"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* Add / Edit Question Modal */}
+        {/* Modal: Add / Edit Question */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
             <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">
-                    {editingQuestion ? 'Edit Question' : 'Add Question'}
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Bangalore Institute of Technology — Feedback Configuration
-                  </p>
-                </div>
+                <h3 className="text-lg font-bold text-slate-900">
+                  {editingQuestion ? 'Edit Question' : 'Add Question'}
+                </h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
@@ -681,15 +691,14 @@ export default function AdminQuestionsPage() {
               </div>
 
               <form onSubmit={handleSave} className="space-y-4">
-                {/* Stakeholder Category Choice */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
                     Stakeholder Category <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formCategoryId}
                     onChange={(e) => setFormCategoryId(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-sm font-semibold focus:bg-white focus:outline-none focus:border-slate-500"
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-sm focus:bg-white focus:outline-none focus:border-slate-500"
                   >
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
@@ -699,46 +708,44 @@ export default function AdminQuestionsPage() {
                   </select>
                 </div>
 
-                {/* Question Text */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
                     Question Text <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     rows={3}
                     value={formText}
                     onChange={(e) => setFormText(e.target.value)}
-                    placeholder="e.g. Which strategic areas should the Institute emphasize in the coming years?"
+                    placeholder="e.g. Which areas should the Institute strengthen?"
                     className="w-full p-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-sm focus:bg-white focus:outline-none focus:border-slate-500"
                   />
                 </div>
 
-                {/* Question Type */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
                     Question Type <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formType}
                     onChange={(e) => setFormType(e.target.value as QuestionType)}
-                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-sm font-semibold focus:bg-white focus:outline-none focus:border-slate-500"
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-sm focus:bg-white focus:outline-none focus:border-slate-500"
                   >
                     <option value="checkboxes">Checkboxes (Multi-select)</option>
                     <option value="paragraph">Paragraph (Textarea input)</option>
                     <option value="multiple_choice">Multiple Choice (Radio buttons)</option>
                     <option value="multiple_choice_grid">
-                      Multiple Choice Grid (Rating matrix per row)
+                      Multiple Choice Grid (1-5 Mini rating per row)
                     </option>
                     <option value="rating_scale">Rating Scale (1-5 Scale)</option>
                   </select>
                 </div>
 
-                {/* Options List Manager */}
+                {/* Options List Manager (for checkboxes, multiple_choice, grid) */}
                 {(formType === 'checkboxes' ||
                   formType === 'multiple_choice' ||
                   formType === 'multiple_choice_grid') && (
                   <div className="space-y-2 border border-slate-200 rounded-xl p-3.5 bg-slate-50">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide">
                       Question Options / Grid Items <span className="text-red-500">*</span>
                     </label>
 
@@ -753,13 +760,13 @@ export default function AdminQuestionsPage() {
                             addOption();
                           }
                         }}
-                        placeholder="Type option label and click Add..."
+                        placeholder="Type option and click Add..."
                         className="flex-1 p-2 rounded-lg border border-slate-300 text-xs text-slate-900 bg-white"
                       />
                       <button
                         type="button"
                         onClick={addOption}
-                        className="px-3.5 py-2 bg-blue-900 hover:bg-blue-950 text-white rounded-lg text-xs font-bold"
+                        className="px-3 py-2 bg-blue-900 hover:bg-blue-950 text-white rounded-lg text-xs font-semibold"
                       >
                         Add
                       </button>
@@ -841,7 +848,7 @@ export default function AdminQuestionsPage() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="px-5 py-2.5 rounded-xl bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                    className="px-5 py-2 rounded-xl bg-blue-900 hover:bg-blue-950 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm disabled:opacity-50"
                   >
                     {saving ? (
                       <>

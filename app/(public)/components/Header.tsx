@@ -11,7 +11,7 @@ interface HeaderProps {
 
 export default function Header({ settings }: HeaderProps) {
   const instituteName = settings?.institute_name || 'Bangalore Institute of Technology';
-  const logoUrl = settings?.logo_url || '/bit.jpg';
+  const logoUrl = settings?.logo_url;
   const primaryColor = settings?.primary_color || '#1F4E79';
 
   return (
@@ -23,7 +23,7 @@ export default function Header({ settings }: HeaderProps) {
         <div className="flex items-center gap-3.5">
           <div className="relative h-12 w-12 flex-shrink-0 flex items-center justify-center bg-white rounded-lg p-0.5 border border-slate-100 shadow-sm">
             <img
-              src={logoUrl}
+              src="/bit.jpg"
               alt={instituteName}
               className="h-11 w-11 object-contain"
             />

@@ -35,10 +35,10 @@ export default function StepThankYou({ settings }: StepThankYouProps) {
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-sm text-slate-600 space-y-1 text-left">
         <div className="flex items-center gap-2 font-semibold text-slate-800">
           <Building2 className="w-4 h-4 text-slate-500" />
-          <span>{instituteName}</span>
+          <span>{instituteName} IQAC Office</span>
         </div>
         <p className="text-xs text-slate-500 mt-1">
-          An Autonomous Institution under VTU, Belagavi. Your input has been recorded securely.
+          Your input has been recorded securely and will be analyzed by the NBA/NAAC Vision-Mission Formulation Committee.
         </p>
       </div>
     </div>

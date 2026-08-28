@@ -63,11 +63,11 @@ function AdminLoginForm() {
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 max-w-md w-full space-y-6">
       <div className="text-center space-y-2">
-        <div className="w-16 h-16 bg-white rounded-2xl mx-auto flex items-center justify-center p-1.5 shadow-md border border-slate-100">
+        <div className="w-14 h-14 bg-white rounded-2xl mx-auto flex items-center justify-center p-1 border border-slate-200 shadow-sm">
           <img src="/bit.jpg" alt="BIT Logo" className="w-full h-full object-contain" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
             Bangalore Institute of Technology
           </h1>
           <p className="text-xs font-semibold text-slate-600 mt-1">

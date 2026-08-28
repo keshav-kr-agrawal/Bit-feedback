@@ -36,7 +36,7 @@ export default function AdminNav() {
     { label: 'Categories', href: '/admin/stakeholders', icon: Users },
     { label: 'Priority Items', href: '/admin/priorities', icon: Star },
     { label: 'Mission Options', href: '/admin/mission-options', icon: CheckSquare },
-    { label: 'Questions Console', href: '/admin/questions', icon: HelpCircle },
+    { label: 'Question Builder', href: '/admin/questions', icon: HelpCircle },
   ];
 
   return (

@@ -97,9 +97,9 @@ export default function StepCombinedPartAB({
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-2">
         <div className="flex items-center gap-2">
           <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 text-[11px] font-bold uppercase tracking-wider">
-            Stakeholder Consultation
+            IQAC Accreditation Exercise
           </span>
-          <span className="text-xs text-slate-500 font-semibold">• An Autonomous Institution under VTU, Belagavi</span>
+          <span className="text-xs text-slate-400 font-semibold">• NBA & NAAC Framework</span>
         </div>
         <h1 className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">
           Stakeholder Feedback for Institute Vision & Mission

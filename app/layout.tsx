@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Bangalore Institute of Technology | Feedback Portal',
-  description: 'Stakeholder Feedback System - An Autonomous Institution under VTU, Belagavi.',
+  title: 'Stakeholder Feedback System | Institute Vision & Mission',
+  description: 'NBA / NAAC Accreditation Stakeholder Feedback System for Institute Vision and Mission formulation.',
 };
 
 export default function RootLayout({

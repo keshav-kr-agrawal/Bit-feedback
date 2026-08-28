@@ -288,7 +288,7 @@ export default function AdminResponsesPage() {
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text('An Autonomous Institution under VTU, Belagavi • Feedback Report', 40, 42);
+    doc.text('IQAC • NBA / NAAC Accreditation Feedback Report', 40, 42);
 
     // Subtitle & Export Metadata
     doc.setTextColor(30, 41, 59);
