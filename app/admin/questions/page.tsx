@@ -57,7 +57,12 @@ export default function AdminQuestionsPage() {
         .select('*')
         .order('sort_order', { ascending: true });
 
-      const loadedCats = (catData && catData.length > 0) ? catData : FALLBACK_CATEGORIES;
+      const rawCats = (catData && catData.length > 0) ? catData : FALLBACK_CATEGORIES;
+      const loadedCats = rawCats.map((c: any) =>
+        c.label.trim() === 'Staff' || c.slug === 'staff'
+          ? { ...c, label: 'Technical Staff', slug: 'technical_staff' }
+          : c
+      );
       setCategories(loadedCats);
       if (loadedCats.length > 0 && !selectedCategoryId) {
         setSelectedCategoryId(loadedCats[0].id);

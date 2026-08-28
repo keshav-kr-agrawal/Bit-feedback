@@ -129,7 +129,14 @@ export default function AdminResponsesPage() {
 
         setResponses(formatted);
       }
-      if (categoriesRes.data) setCategories(categoriesRes.data);
+      if (categoriesRes.data) {
+        const mappedCats = categoriesRes.data.map((c: any) =>
+          c.label.trim() === 'Staff' || c.slug === 'staff'
+            ? { ...c, label: 'Technical Staff', slug: 'technical_staff' }
+            : c
+        );
+        setCategories(mappedCats);
+      }
       if (prioritiesRes.data) setPriorityItems(prioritiesRes.data);
       if (missionRes.data) setMissionOptions(missionRes.data);
       if (questionsRes.data) setQuestions(questionsRes.data);

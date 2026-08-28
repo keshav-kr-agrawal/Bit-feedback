@@ -56,7 +56,14 @@ export default function AdminStakeholdersPage() {
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
-      if (data) setCategories(data);
+      if (data) {
+        const mappedCats = data.map((c: any) =>
+          c.label.trim() === 'Staff' || c.slug === 'staff'
+            ? { ...c, label: 'Technical Staff', slug: 'technical_staff' }
+            : c
+        );
+        setCategories(mappedCats);
+      }
     } catch (err: any) {
       console.error('Error loading categories:', err);
     } finally {

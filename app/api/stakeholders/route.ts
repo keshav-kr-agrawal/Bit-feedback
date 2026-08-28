@@ -14,7 +14,13 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ categories: data || [] });
+    const mappedCategories = (data || []).map((c: any) =>
+      c.label.trim() === 'Staff' || c.slug === 'staff'
+        ? { ...c, label: 'Technical Staff', slug: 'technical_staff' }
+        : c
+    );
+
+    return NextResponse.json({ categories: mappedCategories });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
   }

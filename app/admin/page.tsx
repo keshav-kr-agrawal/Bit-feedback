@@ -98,7 +98,14 @@ export default function AdminDashboardPage() {
           .order('submitted_at', { ascending: false }),
       ]);
 
-      if (categoriesRes.data && categoriesRes.data.length > 0) setCategories(categoriesRes.data);
+      if (categoriesRes.data && categoriesRes.data.length > 0) {
+        const mappedCats = categoriesRes.data.map((c: any) =>
+          c.label.trim() === 'Staff' || c.slug === 'staff'
+            ? { ...c, label: 'Technical Staff', slug: 'technical_staff' }
+            : c
+        );
+        setCategories(mappedCats);
+      }
       if (prioritiesRes.data && prioritiesRes.data.length > 0) setPriorityItems(prioritiesRes.data);
       if (missionRes.data && missionRes.data.length > 0) setMissionOptions(missionRes.data);
       if (questionsRes.data) setQuestions(questionsRes.data);
