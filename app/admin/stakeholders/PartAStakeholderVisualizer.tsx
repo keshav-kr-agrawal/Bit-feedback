@@ -58,6 +58,14 @@ export default function PartAStakeholderVisualizer({
 }: PartAStakeholderVisualizerProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<'distribution' | 'ranking' | 'matrix'>('distribution');
+  const [isMobile, setIsMobile] = useState(false);
+
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const totalResponses = responses.length;
 
@@ -134,7 +142,7 @@ export default function PartAStakeholderVisualizer({
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 self-end sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             {/* Live Indicator */}
             <div
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[11px] font-semibold"
@@ -161,9 +169,9 @@ export default function PartAStakeholderVisualizer({
       </div>
 
       {isExpanded && (
-        <div className="p-5 sm:p-6 space-y-6 bg-[#FAFBFD]">
+        <div className="p-3.5 sm:p-6 space-y-5 sm:space-y-6 bg-[#FAFBFD]">
           {/* Key Metric Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Total Submissions */}
             <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
               <div>
@@ -307,7 +315,7 @@ export default function PartAStakeholderVisualizer({
                     No response submissions yet.
                   </div>
                 ) : (
-                  <div className="h-72 w-full">
+                  <div className="h-64 sm:h-72 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -316,8 +324,8 @@ export default function PartAStakeholderVisualizer({
                           nameKey="name"
                           cx="50%"
                           cy="50%"
-                          innerRadius={55}
-                          outerRadius={85}
+                          innerRadius={isMobile ? 38 : 55}
+                          outerRadius={isMobile ? 65 : 85}
                           paddingAngle={2}
                         >
                           {pieChartData.map((entry, index) => (
@@ -344,7 +352,7 @@ export default function PartAStakeholderVisualizer({
               </div>
 
               {/* Horizontal Bar Chart */}
-              <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+              <div className="bg-white rounded-xl p-3.5 sm:p-5 border border-slate-200 shadow-sm">
                 <div className="w-full text-left mb-2">
                   <h3 className="text-sm font-bold text-slate-900">
                     Response Volume per Category
@@ -359,20 +367,20 @@ export default function PartAStakeholderVisualizer({
                     No category data available.
                   </div>
                 ) : (
-                  <div className="h-72 w-full">
+                  <div className="h-64 sm:h-72 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         layout="vertical"
                         data={sortedStats}
-                        margin={{ top: 5, right: 30, left: 15, bottom: 5 }}
+                        margin={{ top: 5, right: isMobile ? 12 : 30, left: isMobile ? 0 : 15, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
-                        <XAxis type="number" tick={{ fontSize: 11, fill: '#64748B' }} />
+                        <XAxis type="number" tick={{ fontSize: isMobile ? 10 : 11, fill: '#64748B' }} />
                         <YAxis
                           type="category"
                           dataKey="label"
-                          width={140}
-                          tick={{ fontSize: 10, fill: '#334155' }}
+                          width={isMobile ? 95 : 140}
+                          tick={{ fontSize: isMobile ? 9 : 10, fill: '#334155' }}
                         />
                         <Tooltip
                           formatter={(value: any, name: any, item: any) => [
@@ -462,8 +470,8 @@ export default function PartAStakeholderVisualizer({
                 </span>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
+                <table className="w-full min-w-[550px] text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-700 font-bold">
                       <th className="py-3 px-4">Rank</th>

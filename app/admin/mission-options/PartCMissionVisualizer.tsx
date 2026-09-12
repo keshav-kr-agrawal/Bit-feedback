@@ -45,6 +45,14 @@ export default function PartCMissionVisualizer({
   const [isExpanded, setIsExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<'ranking' | 'stakeholder' | 'matrix'>('ranking');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  const [isMobile, setIsMobile] = useState(false);
+
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const categoryMap = useMemo(() => {
     return new Map(categories.map((c) => [c.id, c.label]));
@@ -114,14 +122,17 @@ export default function PartCMissionVisualizer({
 
   // Chart data
   const chartData = useMemo(() => {
-    return sortedOptionStats.map((item, idx) => ({
-      name: item.shortLabel,
-      fullName: item.label,
-      count: item.count,
-      percentage: item.percentage,
-      rank: idx + 1,
-    }));
-  }, [sortedOptionStats]);
+    return sortedOptionStats.map((item, idx) => {
+      const mobileName = item.label.length > 15 ? item.label.substring(0, 15) + '…' : item.label;
+      return {
+        name: isMobile ? mobileName : item.shortLabel,
+        fullName: item.label,
+        count: item.count,
+        percentage: item.percentage,
+        rank: idx + 1,
+      };
+    });
+  }, [sortedOptionStats, isMobile]);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all">
@@ -148,7 +159,7 @@ export default function PartCMissionVisualizer({
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 self-end sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             {/* Live Indicator */}
             <div
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[11px] font-semibold"
@@ -175,9 +186,9 @@ export default function PartCMissionVisualizer({
       </div>
 
       {isExpanded && (
-        <div className="p-5 sm:p-6 space-y-6 bg-[#FAFBFD]">
+        <div className="p-3.5 sm:p-6 space-y-5 sm:space-y-6 bg-[#FAFBFD]">
           {/* Key Metric Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Top Endorsed Mission */}
             <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
               <div className="min-w-0 pr-2">
@@ -356,25 +367,25 @@ export default function PartCMissionVisualizer({
                     No mission commitments recorded yet.
                   </div>
                 ) : (
-                  <div className="h-80 w-full">
+                  <div className="h-80 sm:h-96 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         layout="vertical"
                         data={chartData}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        margin={{ top: 5, right: isMobile ? 12 : 30, left: isMobile ? 0 : 20, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                         <XAxis
                           type="number"
                           domain={[0, 100]}
                           unit="%"
-                          tick={{ fontSize: 11, fill: '#64748B' }}
+                          tick={{ fontSize: isMobile ? 10 : 11, fill: '#64748B' }}
                         />
                         <YAxis
                           type="category"
                           dataKey="name"
-                          width={220}
-                          tick={{ fontSize: 11, fill: '#334155' }}
+                          width={isMobile ? 100 : 220}
+                          tick={{ fontSize: isMobile ? 9 : 11, fill: '#334155' }}
                         />
                         <Tooltip
                           content={({ active, payload }) => {
@@ -505,8 +516,8 @@ export default function PartCMissionVisualizer({
               </div>
 
               {selectedCategoryId === 'all' ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
+                <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
+                  <table className="w-full min-w-[550px] text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                         <th className="py-3 px-3">Mission Commitment Statement</th>
@@ -593,8 +604,8 @@ export default function PartCMissionVisualizer({
                 </span>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
+                <table className="w-full min-w-[550px] text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-700 font-bold">
                       <th className="py-3 px-4">Rank</th>

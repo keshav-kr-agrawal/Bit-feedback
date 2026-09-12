@@ -394,9 +394,9 @@ export default function AdminQuestionsPage() {
     <div className="min-h-screen bg-[#F8F9FB] flex flex-col">
       <AdminNav />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-8 space-y-6">
         {/* Top Header Banner */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
           <div>
             <div className="flex items-center gap-2 text-blue-900 font-bold text-xs uppercase tracking-wider mb-1">
               <HelpCircle className="w-4 h-4" />
@@ -507,7 +507,7 @@ export default function AdminQuestionsPage() {
                   className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
                 >
                   {/* Category Header Bar */}
-                  <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+                  <div className="bg-slate-900 text-white px-4 sm:px-6 py-3.5 sm:py-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white text-xs">
                         <Users className="w-4 h-4" />
@@ -539,7 +539,7 @@ export default function AdminQuestionsPage() {
                   ) : (
                     <div className="divide-y divide-slate-100">
                       {questions.map((q) => (
-                        <div key={q.id} className="p-6 hover:bg-slate-50/70 transition-colors space-y-3">
+                        <div key={q.id} className="p-4 sm:p-6 hover:bg-slate-50/70 transition-colors space-y-3">
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                             <div className="space-y-2 flex-1">
                               <div className="flex flex-wrap items-center gap-2">

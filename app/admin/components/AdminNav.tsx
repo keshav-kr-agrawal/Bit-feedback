@@ -48,11 +48,11 @@ export default function AdminNav() {
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 shadow-sm flex-shrink-0">
               <img src="/bit.jpg" alt="BIT Logo" className="w-full h-full object-contain" />
             </div>
-            <div>
-              <span className="font-bold text-sm sm:text-base tracking-tight block leading-tight text-white">
+            <div className="min-w-0">
+              <span className="font-bold text-xs sm:text-base tracking-tight block leading-tight text-white truncate">
                 Bangalore Institute of Technology
               </span>
-              <span className="text-[11px] text-blue-300 font-medium block">
+              <span className="text-[10px] sm:text-[11px] text-blue-300 font-medium block truncate">
                 An Autonomous Institution under VTU, Belagavi
               </span>
             </div>

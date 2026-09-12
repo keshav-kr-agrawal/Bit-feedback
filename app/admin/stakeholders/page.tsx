@@ -200,7 +200,7 @@ export default function AdminStakeholdersPage() {
     <div className="min-h-screen bg-[#F8F9FB] flex flex-col">
       <AdminNav />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
@@ -238,7 +238,7 @@ export default function AdminStakeholdersPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full min-w-[500px] text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
                     <th className="py-3.5 px-4 w-16 text-center">Order</th>

@@ -574,7 +574,7 @@ export default function AdminResponsesPage() {
     <div className="min-h-screen bg-[#F8F9FB] flex flex-col">
       <AdminNav />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-8 space-y-6">
         {/* Header & Export Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -586,11 +586,11 @@ export default function AdminResponsesPage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
             <button
               onClick={loadData}
               disabled={loading}
-              className="px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-slate-700 text-xs font-semibold flex items-center gap-2 hover:bg-slate-50 shadow-sm"
+              className="flex-1 sm:flex-initial justify-center px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-slate-700 text-xs font-semibold flex items-center gap-2 hover:bg-slate-50 shadow-sm"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
@@ -598,7 +598,7 @@ export default function AdminResponsesPage() {
 
             <button
               onClick={handleExportCSV}
-              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm transition-colors"
+              className="flex-1 sm:flex-initial justify-center px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm transition-colors"
             >
               <Download className="w-4 h-4" />
               <span>Export CSV</span>
@@ -606,7 +606,7 @@ export default function AdminResponsesPage() {
 
             <button
               onClick={handleExportPDF}
-              className="px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm transition-colors"
+              className="flex-1 sm:flex-initial justify-center px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm transition-colors"
             >
               <FileText className="w-4 h-4" />
               <span>Export PDF Report</span>
@@ -689,7 +689,7 @@ export default function AdminResponsesPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full min-w-[620px] text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
                     <th className="py-3.5 px-4">Submitted Date</th>

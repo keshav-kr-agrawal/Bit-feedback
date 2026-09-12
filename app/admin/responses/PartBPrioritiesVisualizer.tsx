@@ -50,6 +50,14 @@ export default function PartBPrioritiesVisualizer({
   const [activeTab, setActiveTab] = useState<'ranking' | 'distribution' | 'stakeholder' | 'matrix'>('ranking');
   const [useFilteredScope, setUseFilteredScope] = useState(true);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  const [isMobile, setIsMobile] = useState(false);
+
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Determine active dataset
   const activeResponses = useMemo(() => {
@@ -156,22 +164,26 @@ export default function PartBPrioritiesVisualizer({
 
   // Chart data for Ranking tab
   const rankingChartData = useMemo(() => {
-    return sortedPriorityStats.map((item, index) => ({
-      name: item.shortLabel,
-      fullName: item.label,
-      avg: item.avg,
-      count: item.count,
-      highPriorityPercent: item.highPriorityPercent,
-      rank: index + 1,
-    }));
-  }, [sortedPriorityStats]);
+    return sortedPriorityStats.map((item, index) => {
+      const mobileName = item.label.length > 15 ? item.label.substring(0, 15) + '…' : item.label;
+      return {
+        name: isMobile ? mobileName : item.shortLabel,
+        fullName: item.label,
+        avg: item.avg,
+        count: item.count,
+        highPriorityPercent: item.highPriorityPercent,
+        rank: index + 1,
+      };
+    });
+  }, [sortedPriorityStats, isMobile]);
 
   // Chart data for Distribution tab (Stacked percentage)
   const distributionChartData = useMemo(() => {
     return sortedPriorityStats.map((item) => {
       const c = item.count || 1;
+      const mobileName = item.label.length > 15 ? item.label.substring(0, 15) + '…' : item.label;
       return {
-        name: item.shortLabel,
+        name: isMobile ? mobileName : item.shortLabel,
         fullName: item.label,
         '5 - Very High': Number(((item.dist[5] / c) * 100).toFixed(1)),
         '4 - High': Number(((item.dist[4] / c) * 100).toFixed(1)),
@@ -181,7 +193,7 @@ export default function PartBPrioritiesVisualizer({
         totalCount: item.count,
       };
     });
-  }, [sortedPriorityStats]);
+  }, [sortedPriorityStats, isMobile]);
 
   // Dynamic bar colors based on score
   const getRatingColor = (avg: number) => {
@@ -217,7 +229,7 @@ export default function PartBPrioritiesVisualizer({
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 self-end sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             {/* Live Indicator */}
             <div
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[11px] font-semibold"
@@ -266,9 +278,9 @@ export default function PartBPrioritiesVisualizer({
       </div>
 
       {isExpanded && (
-        <div className="p-5 sm:p-6 space-y-6 bg-[#FAFBFD]">
+        <div className="p-3.5 sm:p-6 space-y-5 sm:space-y-6 bg-[#FAFBFD]">
           {/* Key Metric Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Overall Score */}
             <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
               <div>
@@ -360,7 +372,7 @@ export default function PartBPrioritiesVisualizer({
 
           {/* Navigation Tabs for Different Visualizations */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-2">
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 sm:mx-0 sm:px-0">
               <button
                 onClick={() => setActiveTab('ranking')}
                 className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
@@ -445,25 +457,25 @@ export default function PartBPrioritiesVisualizer({
                     No priority ratings recorded yet.
                   </div>
                 ) : (
-                  <div className="h-80 w-full">
+                  <div className="h-80 sm:h-96 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         layout="vertical"
                         data={rankingChartData}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        margin={{ top: 5, right: isMobile ? 12 : 30, left: isMobile ? 0 : 20, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                         <XAxis
                           type="number"
                           domain={[0, 5]}
                           ticks={[0, 1, 2, 3, 4, 5]}
-                          tick={{ fontSize: 11, fill: '#64748B' }}
+                          tick={{ fontSize: isMobile ? 10 : 11, fill: '#64748B' }}
                         />
                         <YAxis
                           type="category"
                           dataKey="name"
-                          width={190}
-                          tick={{ fontSize: 11, fill: '#334155' }}
+                          width={isMobile ? 100 : 190}
+                          tick={{ fontSize: isMobile ? 9 : 11, fill: '#334155' }}
                         />
                         <Tooltip
                           content={({ active, payload }) => {
@@ -619,20 +631,20 @@ export default function PartBPrioritiesVisualizer({
                     <BarChart
                       layout="vertical"
                       data={distributionChartData}
-                      margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
+                      margin={{ top: 5, right: isMobile ? 10 : 20, left: isMobile ? 0 : 20, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
                       <XAxis
                         type="number"
                         domain={[0, 100]}
                         unit="%"
-                        tick={{ fontSize: 11, fill: '#64748B' }}
+                        tick={{ fontSize: isMobile ? 10 : 11, fill: '#64748B' }}
                       />
                       <YAxis
                         type="category"
                         dataKey="name"
-                        width={190}
-                        tick={{ fontSize: 11, fill: '#334155' }}
+                        width={isMobile ? 100 : 190}
+                        tick={{ fontSize: isMobile ? 9 : 11, fill: '#334155' }}
                       />
                       <Tooltip
                         formatter={(value: any, name: any) => [`${value}%`, name]}
@@ -690,8 +702,8 @@ export default function PartBPrioritiesVisualizer({
               </div>
 
               {selectedCategoryId === 'all' ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
+                <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
+                  <table className="w-full min-w-[550px] text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                         <th className="py-3 px-3">Institutional Priority Area</th>
@@ -796,8 +808,8 @@ export default function PartBPrioritiesVisualizer({
                 </span>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
+                <table className="w-full min-w-[550px] text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-700 font-bold">
                       <th className="py-3 px-4">Rank</th>
