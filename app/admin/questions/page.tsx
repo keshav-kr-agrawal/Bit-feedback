@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import AdminNav from '../components/AdminNav';
 import { createClient } from '@/lib/supabase/client';
-import { StakeholderCategory, StakeholderQuestion, QuestionType } from '@/lib/types';
+import { StakeholderCategory, StakeholderQuestion, QuestionType, FeedbackResponse } from '@/lib/types';
 import { FALLBACK_CATEGORIES, FALLBACK_QUESTIONS } from '@/lib/sampleData';
 import {
   HelpCircle,
@@ -19,7 +19,9 @@ import {
   Search,
   CheckCircle2,
   Layers,
+  RefreshCw,
 } from 'lucide-react';
+import PartDQuestionsVisualizer from './PartDQuestionsVisualizer';
 
 export default function AdminQuestionsPage() {
   const supabase = createClient();
@@ -28,6 +30,8 @@ export default function AdminQuestionsPage() {
   const [categories, setCategories] = useState<StakeholderCategory[]>(FALLBACK_CATEGORIES);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [allQuestionsList, setAllQuestionsList] = useState<StakeholderQuestion[]>([]);
+  const [responses, setResponses] = useState<FeedbackResponse[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
   // View Mode: 'all' = All Current Questions Overview, 'category' = Manage Single Category
   const [viewMode, setViewMode] = useState<'all' | 'category'>('all');
@@ -126,6 +130,31 @@ export default function AdminQuestionsPage() {
       } else {
         setAllQuestionsList(FALLBACK_QUESTIONS);
       }
+
+      // Fetch Responses with Answers for Real-Time Question Analytics
+      const { data: respData } = await supabase
+        .from('responses')
+        .select('id, stakeholder_category_id, answers_list:response_answers(question_id, answer_text, selected_option_ids)')
+        .order('submitted_at', { ascending: false });
+
+      if (respData) {
+        const formattedResp: FeedbackResponse[] = respData.map((r: any) => {
+          const sAnswers: Record<string, any> = {};
+          if (Array.isArray(r.answers_list) && r.answers_list.length > 0) {
+            r.answers_list.forEach((a: any) => {
+              if (a.question_id) {
+                sAnswers[a.question_id] = a.selected_option_ids || a.answer_text;
+              }
+            });
+          }
+          return {
+            ...r,
+            stakeholder_answers: sAnswers,
+          } as FeedbackResponse;
+        });
+        setResponses(formattedResp);
+      }
+      setLastUpdated(new Date());
     } catch (err: any) {
       console.error('Error fetching admin questions:', err);
       setAllQuestionsList(FALLBACK_QUESTIONS);
@@ -136,6 +165,29 @@ export default function AdminQuestionsPage() {
 
   useEffect(() => {
     fetchAllData();
+
+    // Realtime subscription for live responses and question answers
+    const channel = supabase
+      .channel('realtime_questions_page')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'responses' },
+        () => {
+          fetchAllData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'response_answers' },
+        () => {
+          fetchAllData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const openCreateModal = (catId?: string) => {
@@ -368,6 +420,16 @@ export default function AdminQuestionsPage() {
             </button>
           </div>
         </div>
+
+        {/* Part D Real-Time Visualizer */}
+        <PartDQuestionsVisualizer
+          questions={allQuestionsList}
+          categories={categories}
+          responses={responses}
+          loading={loading}
+          onRefresh={fetchAllData}
+          lastUpdated={lastUpdated}
+        />
 
         {/* Navigation & Controls Bar */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">

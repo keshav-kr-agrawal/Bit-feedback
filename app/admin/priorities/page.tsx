@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import AdminNav from '../components/AdminNav';
 import { createClient } from '@/lib/supabase/client';
-import { PriorityItem } from '@/lib/types';
+import { PriorityItem, StakeholderCategory, FeedbackResponse } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { priorityItemSchema } from '@/lib/validation';
 import { z } from 'zod';
-import { Star, Plus, Edit2, Trash2, X, Loader2, Power } from 'lucide-react';
+import { Star, Plus, Edit2, Trash2, X, Loader2, Power, RefreshCw } from 'lucide-react';
+import PartBPrioritiesVisualizer from '../responses/PartBPrioritiesVisualizer';
 
 type FormValues = z.infer<typeof priorityItemSchema>;
 
@@ -17,6 +18,9 @@ export default function AdminPrioritiesPage() {
 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<PriorityItem[]>([]);
+  const [responses, setResponses] = useState<FeedbackResponse[]>([]);
+  const [categories, setCategories] = useState<StakeholderCategory[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [editingItem, setEditingItem] = useState<PriorityItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -35,25 +39,71 @@ export default function AdminPrioritiesPage() {
     },
   });
 
-  const loadItems = async () => {
+  const loadAllData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('priority_items')
-        .select('*')
-        .order('sort_order', { ascending: true });
+      const [prioritiesRes, categoriesRes, responsesRes] = await Promise.all([
+        supabase.from('priority_items').select('*').order('sort_order', { ascending: true }),
+        supabase.from('stakeholder_categories').select('*').order('sort_order', { ascending: true }),
+        supabase
+          .from('responses')
+          .select('*, priority_ratings_list:response_priority_ratings(priority_item_id, rating)')
+          .order('submitted_at', { ascending: false }),
+      ]);
 
-      if (error) throw error;
-      if (data) setItems(data);
+      if (prioritiesRes.data) setItems(prioritiesRes.data);
+      if (categoriesRes.data) setCategories(categoriesRes.data);
+
+      if (responsesRes.data) {
+        const formatted: FeedbackResponse[] = responsesRes.data.map((r: any) => {
+          const pRatings: Record<string, number> = {};
+          if (Array.isArray(r.priority_ratings_list) && r.priority_ratings_list.length > 0) {
+            r.priority_ratings_list.forEach((p: any) => {
+              if (p.priority_item_id) pRatings[p.priority_item_id] = p.rating;
+            });
+          } else if (r.priority_ratings && typeof r.priority_ratings === 'object') {
+            Object.assign(pRatings, r.priority_ratings);
+          }
+          return {
+            ...r,
+            priority_ratings: pRatings,
+          };
+        });
+        setResponses(formatted);
+      }
+      setLastUpdated(new Date());
     } catch (err: any) {
-      console.error('Error loading priority items:', err);
+      console.error('Error loading priorities data:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadItems();
+    loadAllData();
+
+    // Supabase Realtime subscription for live responses
+    const channel = supabase
+      .channel('realtime_priorities_page')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'responses' },
+        () => {
+          loadAllData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'response_priority_ratings' },
+        () => {
+          loadAllData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const openCreateModal = () => {
@@ -92,7 +142,7 @@ export default function AdminPrioritiesPage() {
         if (error) throw error;
       }
 
-      await loadItems();
+      await loadAllData();
       setIsModalOpen(false);
     } catch (err: any) {
       alert(`Failed to save priority item: ${err.message}`);
@@ -139,7 +189,7 @@ export default function AdminPrioritiesPage() {
           .eq('id', item.id);
       }
 
-      await loadItems();
+      await loadAllData();
     } catch (err: any) {
       alert(`Error deleting priority item: ${err.message}`);
     }
@@ -168,6 +218,17 @@ export default function AdminPrioritiesPage() {
             <span>Add Priority Item</span>
           </button>
         </div>
+
+        {/* Part B Real-Time Visualizer */}
+        <PartBPrioritiesVisualizer
+          responses={responses}
+          filteredResponses={responses}
+          priorityItems={items}
+          categories={categories}
+          loading={loading}
+          onRefresh={loadAllData}
+          lastUpdated={lastUpdated}
+        />
 
         {/* Priority Items Table */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

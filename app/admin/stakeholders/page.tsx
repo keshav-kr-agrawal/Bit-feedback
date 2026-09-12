@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import AdminNav from '../components/AdminNav';
 import { createClient } from '@/lib/supabase/client';
-import { StakeholderCategory } from '@/lib/types';
+import { StakeholderCategory, FeedbackResponse } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { stakeholderCategorySchema } from '@/lib/validation';
@@ -18,7 +18,9 @@ import {
   Loader2,
   ArrowUpDown,
   Power,
+  RefreshCw,
 } from 'lucide-react';
+import PartAStakeholderVisualizer from './PartAStakeholderVisualizer';
 
 type FormValues = z.infer<typeof stakeholderCategorySchema>;
 
@@ -27,6 +29,8 @@ export default function AdminStakeholdersPage() {
 
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<StakeholderCategory[]>([]);
+  const [responses, setResponses] = useState<FeedbackResponse[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [editingCategory, setEditingCategory] = useState<StakeholderCategory | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -47,32 +51,52 @@ export default function AdminStakeholdersPage() {
     },
   });
 
-  const loadCategories = async () => {
+  const loadAllData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('stakeholder_categories')
-        .select('*')
-        .order('sort_order', { ascending: true });
+      const [categoriesRes, responsesRes] = await Promise.all([
+        supabase.from('stakeholder_categories').select('*').order('sort_order', { ascending: true }),
+        supabase.from('responses').select('id, name, email, phone, stakeholder_category_id, submitted_at').order('submitted_at', { ascending: false }),
+      ]);
 
-      if (error) throw error;
-      if (data) {
-        const mappedCats = data.map((c: any) =>
+      if (categoriesRes.data) {
+        const mappedCats = categoriesRes.data.map((c: any) =>
           c.label.trim() === 'Staff' || c.slug === 'staff'
             ? { ...c, label: 'Technical Staff', slug: 'technical_staff' }
             : c
         );
         setCategories(mappedCats);
       }
+
+      if (responsesRes.data) {
+        setResponses(responsesRes.data as FeedbackResponse[]);
+      }
+      setLastUpdated(new Date());
     } catch (err: any) {
-      console.error('Error loading categories:', err);
+      console.error('Error loading categories data:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadCategories();
+    loadAllData();
+
+    // Realtime subscription for live responses
+    const channel = supabase
+      .channel('realtime_stakeholders_page')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'responses' },
+        () => {
+          loadAllData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const openCreateModal = () => {
@@ -115,7 +139,7 @@ export default function AdminStakeholdersPage() {
         if (error) throw error;
       }
 
-      await loadCategories();
+      await loadAllData();
       setIsModalOpen(false);
     } catch (err: any) {
       alert(`Failed to save stakeholder category: ${err.message}`);
@@ -166,7 +190,7 @@ export default function AdminStakeholdersPage() {
           .eq('id', cat.id);
       }
 
-      await loadCategories();
+      await loadAllData();
     } catch (err: any) {
       alert(`Error deleting category: ${err.message}`);
     }
@@ -195,6 +219,15 @@ export default function AdminStakeholdersPage() {
             <span>Add Category</span>
           </button>
         </div>
+
+        {/* Part A Real-Time Visualizer */}
+        <PartAStakeholderVisualizer
+          categories={categories}
+          responses={responses}
+          loading={loading}
+          onRefresh={loadAllData}
+          lastUpdated={lastUpdated}
+        />
 
         {/* Categories List */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

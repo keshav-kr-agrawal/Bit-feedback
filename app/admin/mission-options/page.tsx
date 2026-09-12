@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import AdminNav from '../components/AdminNav';
 import { createClient } from '@/lib/supabase/client';
-import { MissionOption } from '@/lib/types';
+import { MissionOption, StakeholderCategory, FeedbackResponse } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { missionOptionSchema } from '@/lib/validation';
 import { z } from 'zod';
-import { CheckSquare, Plus, Edit2, Trash2, X, Loader2, Power } from 'lucide-react';
+import { CheckSquare, Plus, Edit2, Trash2, X, Loader2, Power, RefreshCw } from 'lucide-react';
+import PartCMissionVisualizer from './PartCMissionVisualizer';
 
 type FormValues = z.infer<typeof missionOptionSchema>;
 
@@ -17,6 +18,9 @@ export default function AdminMissionOptionsPage() {
 
   const [loading, setLoading] = useState(true);
   const [options, setOptions] = useState<MissionOption[]>([]);
+  const [responses, setResponses] = useState<FeedbackResponse[]>([]);
+  const [categories, setCategories] = useState<StakeholderCategory[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [editingOption, setEditingOption] = useState<MissionOption | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -35,25 +39,72 @@ export default function AdminMissionOptionsPage() {
     },
   });
 
-  const loadOptions = async () => {
+  const loadAllData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('mission_options')
-        .select('*')
-        .order('sort_order', { ascending: true });
+      const [optionsRes, categoriesRes, responsesRes] = await Promise.all([
+        supabase.from('mission_options').select('*').order('sort_order', { ascending: true }),
+        supabase.from('stakeholder_categories').select('*').order('sort_order', { ascending: true }),
+        supabase
+          .from('responses')
+          .select('*, mission_selections_list:response_mission_selections(mission_option_id, other_text)')
+          .order('submitted_at', { ascending: false }),
+      ]);
 
-      if (error) throw error;
-      if (data) setOptions(data);
+      if (optionsRes.data) setOptions(optionsRes.data);
+      if (categoriesRes.data) setCategories(categoriesRes.data);
+
+      if (responsesRes.data) {
+        const formatted: FeedbackResponse[] = responsesRes.data.map((r: any) => {
+          let mCommitments: any[] = [];
+          if (Array.isArray(r.mission_selections_list) && r.mission_selections_list.length > 0) {
+            mCommitments = r.mission_selections_list.map((m: any) => ({
+              option_id: m.mission_option_id,
+              other_text: m.other_text,
+            }));
+          } else if (Array.isArray(r.mission_commitments)) {
+            mCommitments = r.mission_commitments;
+          }
+          return {
+            ...r,
+            mission_commitments: mCommitments,
+          };
+        });
+        setResponses(formatted);
+      }
+      setLastUpdated(new Date());
     } catch (err: any) {
-      console.error('Error loading mission options:', err);
+      console.error('Error loading mission options data:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadOptions();
+    loadAllData();
+
+    // Realtime subscription for live responses
+    const channel = supabase
+      .channel('realtime_mission_options_page')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'responses' },
+        () => {
+          loadAllData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'response_mission_selections' },
+        () => {
+          loadAllData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const openCreateModal = () => {
@@ -92,7 +143,7 @@ export default function AdminMissionOptionsPage() {
         if (error) throw error;
       }
 
-      await loadOptions();
+      await loadAllData();
       setIsModalOpen(false);
     } catch (err: any) {
       alert(`Failed to save mission option: ${err.message}`);
@@ -139,7 +190,7 @@ export default function AdminMissionOptionsPage() {
           .eq('id', opt.id);
       }
 
-      await loadOptions();
+      await loadAllData();
     } catch (err: any) {
       alert(`Error deleting option: ${err.message}`);
     }
@@ -168,6 +219,16 @@ export default function AdminMissionOptionsPage() {
             <span>Add Mission Option</span>
           </button>
         </div>
+
+        {/* Part C Real-Time Visualizer */}
+        <PartCMissionVisualizer
+          options={options}
+          responses={responses}
+          categories={categories}
+          loading={loading}
+          onRefresh={loadAllData}
+          lastUpdated={lastUpdated}
+        />
 
         {/* Mission Options Table */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
