@@ -28,6 +28,22 @@ import {
   FileText,
   Printer,
 } from 'lucide-react';
+import PartBPrioritiesVisualizer from './PartBPrioritiesVisualizer';
+
+const DEFAULT_PRIORITIES: PriorityItem[] = [
+  { id: '20000000-0000-0000-0000-000000000001', label: 'Academic Excellence & Outcome-Based Education', sort_order: 1, is_active: true },
+  { id: '20000000-0000-0000-0000-000000000002', label: 'Research, Innovation & Intellectual Property (Patents)', sort_order: 2, is_active: true },
+  { id: '20000000-0000-0000-0000-000000000003', label: 'Industry Collaboration, Internships & Placements', sort_order: 3, is_active: true },
+  { id: '20000000-0000-0000-0000-000000000004', label: 'Entrepreneurship & Startup Incubation Ecosystem', sort_order: 4, is_active: true },
+  { id: '20000000-0000-0000-0000-000000000005', label: 'Infrastructure Development & State-of-the-Art Labs', sort_order: 5, is_active: true },
+  { id: '20000000-0000-0000-0000-000000000006', label: 'Faculty Development & Continuous Skill Upgradation', sort_order: 6, is_active: true },
+  { id: '20000000-0000-0000-0000-000000000007', label: 'Student Holistic Growth, Leadership & Ethics', sort_order: 7, is_active: true },
+  { id: '20000000-0000-0000-0000-000000000008', label: 'Global Exposure & International Academic Partnerships', sort_order: 8, is_active: true },
+  { id: '20000000-0000-0000-0000-000000000009', label: 'Emerging Technologies Integration (AI, Data Science, IoT)', sort_order: 9, is_active: true },
+  { id: '20000000-0000-0000-0000-000000000010', label: 'Social Responsibility, Sustainability & Community Impact', sort_order: 10, is_active: true },
+  { id: '20000000-0000-0000-0000-000000000011', label: 'Alumni Engagement & Professional Mentorship Network', sort_order: 11, is_active: true },
+  { id: '20000000-0000-0000-0000-000000000012', label: 'Governance, Transparency & Accreditation Standards (NBA/NAAC)', sort_order: 12, is_active: true },
+];
 
 export default function AdminResponsesPage() {
   const supabase = createClient();
@@ -39,6 +55,7 @@ export default function AdminResponsesPage() {
   const [missionOptions, setMissionOptions] = useState<MissionOption[]>([]);
   const [questions, setQuestions] = useState<StakeholderQuestion[]>([]);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -137,12 +154,18 @@ export default function AdminResponsesPage() {
         );
         setCategories(mappedCats);
       }
-      if (prioritiesRes.data) setPriorityItems(prioritiesRes.data);
+      if (prioritiesRes.data && prioritiesRes.data.length > 0) {
+        setPriorityItems(prioritiesRes.data);
+      } else {
+        setPriorityItems(DEFAULT_PRIORITIES);
+      }
       if (missionRes.data) setMissionOptions(missionRes.data);
       if (questionsRes.data) setQuestions(questionsRes.data);
       if (settingsRes.data) setSettings(settingsRes.data);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error('Error loading responses:', err);
+      setPriorityItems(DEFAULT_PRIORITIES);
     } finally {
       setLoading(false);
     }
@@ -150,6 +173,29 @@ export default function AdminResponsesPage() {
 
   useEffect(() => {
     loadData();
+
+    // Setup Supabase Realtime channel for live response monitoring
+    const channel = supabase
+      .channel('realtime_admin_responses_partb')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'responses' },
+        () => {
+          loadData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'response_priority_ratings' },
+        () => {
+          loadData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Category lookup maps
@@ -618,6 +664,17 @@ export default function AdminResponsesPage() {
             />
           </div>
         </div>
+
+        {/* Part B — Institutional Priorities Real-Time Visualizer */}
+        <PartBPrioritiesVisualizer
+          responses={responses}
+          filteredResponses={filteredResponses}
+          priorityItems={priorityItems.length > 0 ? priorityItems : DEFAULT_PRIORITIES}
+          categories={categories}
+          loading={loading}
+          onRefresh={loadData}
+          lastUpdated={lastUpdated}
+        />
 
         {/* Data Table */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

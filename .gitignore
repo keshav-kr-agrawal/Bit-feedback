@@ -27,3 +27,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# os
+.DS_Store
+*.DS_Store
+
